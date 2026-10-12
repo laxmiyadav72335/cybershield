@@ -7,20 +7,52 @@
 import { GoogleGenAI } from '@google/genai';
 import { hasKey } from '../utils/config.js';
 
-const model = () => process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-let _ai = null;
-// 12 s cap: the explanation is a nice-to-have, so a slow model never stalls a scan
-const ai = () => (_ai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { timeout: 12000 } }));
+const DEFAULT_MODEL = 'gemini-3.5-flash';
+/**
+ * Models to try, in order, when the configured one fails with 404 (retired),
+ * 429 (free-tier quota exhausted) or 503/504 (overloaded). The configured
+ * GEMINI_MODEL always goes first. Once a model fails hard we skip it for the
+ * rest of the process so every scan doesn't pay the failure again.
+ */
+const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+const disabledModels = new Set();
+const candidates = () => [...new Set([process.env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS])].filter((m) => !disabledModels.has(m));
+export const model = () => candidates()[0] || DEFAULT_MODEL;
 
-/** Gemini occasionally answers 503 "high demand"; wait briefly and retry once before giving up. */
+let _ai = null;
+// 10 s cap per call: the AI text is a nice-to-have, so a slow model never stalls a scan
+const ai = () => (_ai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { timeout: 10000 } }));
+
+/** Hard cap for a whole Gemini step (all fallback models included). Resolves to null on timeout. */
+const withCap = (promise, ms) =>
+  Promise.race([promise.catch(() => null), new Promise((r) => setTimeout(() => r(null), ms))]);
+
+const EXPLAIN_CAP_MS = 7000;   // nice-to-have text: never make the user wait longer than this
+const ANALYZE_CAP_MS = 12000;  // message classification is the main result, allow a bit more
+
 async function generate(params) {
-  try {
-    return await ai().models.generateContent(params);
-  } catch (err) {
-    if (!/503|UNAVAILABLE|high demand/i.test(err.message || '')) throw err;
-    await new Promise((r) => setTimeout(r, 1500));
-    return ai().models.generateContent(params);
+  let lastErr;
+  for (const m of candidates()) {
+    // "lite" models reject thinkingConfig — strip it for them
+    const config = /lite/.test(m) && params.config?.thinkingConfig ? { ...params.config, thinkingConfig: undefined } : params.config;
+    try {
+      return await ai().models.generateContent({ ...params, model: m, config });
+    } catch (err) {
+      lastErr = err;
+      const msg = err.message || '';
+      if (/404|NOT_FOUND|no longer available/i.test(msg) || /429|RESOURCE_EXHAUSTED|quota/i.test(msg)) {
+        console.warn(`[gemini] ${m} unavailable (${/429|quota/i.test(msg) ? 'quota exhausted' : 'not found'}) — trying next model`);
+        disabledModels.add(m);
+        continue;
+      }
+      if (/503|504|UNAVAILABLE|DEADLINE|high demand|timeout/i.test(msg)) {
+        console.warn(`[gemini] ${m} slow/overloaded — trying next model`);
+        continue; // transient: don't disable permanently
+      }
+      throw err;
+    }
   }
+  throw lastErr || new Error('No Gemini model available');
 }
 
 /** Fallback text when Gemini is unavailable, so the UI always has an explanation. */
@@ -49,13 +81,14 @@ ${Object.entries(extra).map(([k, v]) => `${k}: ${v}`).join('\n')}
 Write 2–3 short, plain-English sentences (no jargon, no markdown, no bullet points) telling the user
 what was found and what they should do. Be calm and specific.`;
   try {
-    const res = await generate({ model: model(), contents: prompt, config: {
+    const res = await withCap(generate({ contents: prompt, config: {
         temperature: 0.4,
         // Newer Gemini models spend output tokens on internal "thinking"; give
         // headroom and turn thinking off for this short, simple task.
         maxOutputTokens: 1024,
         thinkingConfig: { thinkingBudget: 0 },
-      } });
+      } }), EXPLAIN_CAP_MS);
+    if (!res) return { available: false, text: fallbackExplanation(ctx) };
     const text = (res.text || '').trim();
     return text ? { available: true, text } : { available: false, text: fallbackExplanation(ctx) };
   } catch (err) {
@@ -74,11 +107,11 @@ Rules: phrases in redFlags must be copied verbatim from the message. riskScore r
 export async function analyzeMessage(text) {
   if (!hasKey('GEMINI_API_KEY')) return { available: false, reason: 'not_configured' };
   try {
-    const res = await generate({
-      model: model(),
+    const res = await withCap(generate({
       contents: text,
-      config: { systemInstruction: MESSAGE_SYSTEM_PROMPT, responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2048 },
-    });
+      config: { systemInstruction: MESSAGE_SYSTEM_PROMPT, responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
+    }), ANALYZE_CAP_MS);
+    if (!res) return { available: false, reason: 'timeout' };
     const raw = (res.text || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
     const json = JSON.parse(raw);
     return {

@@ -5,7 +5,7 @@
  *  b) Every URL inside the message is extracted and run through Module 1.
  *  c) The Result page highlights the red-flag phrases in the original text.
  */
-import { analyzeMessage, explainFindings } from './gemini.js';
+import { analyzeMessage, explainFindings, fallbackExplanation } from './gemini.js';
 import { analyzeMessageHeuristics } from '../utils/messageHeuristics.js';
 import { extractUrls } from '../utils/urlUtils.js';
 import { scanUrl } from './urlScanner.js';
@@ -45,7 +45,10 @@ export async function scanMessage(rawText) {
   // Explanation: Gemini's own text if available, otherwise generate / fallback
   let explanation = aiRaw.available ? aiRaw.explanation : '';
   let aiAvailable = aiRaw.available;
-  if (!explanation) {
+  if (!explanation && !aiRaw.available) {
+    // Gemini already failed for this message — don't wait on it a second time
+    explanation = fallbackExplanation({ scanType: 'message', verdict, score, breakdown, unavailable: ['Gemini AI'] });
+  } else if (!explanation) {
     const gen = await explainFindings({
       scanType: 'message',
       input: text.slice(0, 400),
