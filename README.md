@@ -187,7 +187,7 @@ Health check: `curl http://localhost:5001/api/health` lists which keys are loade
 |-------------------|-----------------|-----------|
 | `VIRUSTOTAL_API_KEY` | <https://www.virustotal.com> → sign up → profile → *API key* | 4 req/min, 500/day (we cache 1 h) |
 | `SAFE_BROWSING_API_KEY` | Google Cloud Console → *APIs & Services* → enable **Safe Browsing API** → *Credentials* → API key | 10 000 req/day |
-| `GEMINI_API_KEY` | <https://aistudio.google.com/app/apikey> | generous free tier |
+| `GEMINI_API_KEY` | <https://aistudio.google.com/app/apikey> — several keys may be comma-separated (one per Google Cloud project) and are rotated on quota errors | per-project daily limit; app falls back to rule-based text when exhausted |
 | `GEMINI_MODEL` | any Gemini model id, default `gemini-3.5-flash` | — |
 | `ABUSEIPDB_API_KEY` | <https://www.abuseipdb.com/account/api> | 1 000 checks/day |
 | `CLIENT_ORIGIN` | your client URL(s), comma-separated | — |

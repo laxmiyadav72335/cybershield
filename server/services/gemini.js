@@ -17,15 +17,36 @@ const DEFAULT_MODEL = 'gemini-3.5-flash';
 const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
 // model → timestamp until which it is skipped (Infinity = retired, 60 s = quota cooldown)
 const disabledUntil = new Map();
+const quotaRotated = new Set(); // models we already rotated keys for in this cooldown window
 const QUOTA_COOLDOWN_MS = 60 * 1000;
 const OUTAGE_COOLDOWN_MS = 30 * 1000; // after a 503/504/timeout, don't retry that model for 30 s
 const candidates = () =>
   [...new Set([process.env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS])].filter((m) => (disabledUntil.get(m) || 0) < Date.now());
 export const model = () => candidates()[0] || DEFAULT_MODEL;
 
-let _ai = null;
+/**
+ * API keys: GEMINI_API_KEY may hold several keys separated by commas. The free
+ * tier is per Google Cloud project, so a second key from a second project
+ * doubles the daily allowance. On a 429 we move to the next key before
+ * falling back to another model.
+ */
+const keys = () => (process.env.GEMINI_API_KEY || '').split(',').map((k) => k.trim()).filter(Boolean);
+let keyIndex = 0;
+const clients = new Map(); // key → GoogleGenAI
 // 10 s cap per call: the AI text is a nice-to-have, so a slow model never stalls a scan
-const ai = () => (_ai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { timeout: 10000 } }));
+const ai = () => {
+  const list = keys();
+  const key = list[keyIndex % list.length];
+  if (!clients.has(key)) clients.set(key, new GoogleGenAI({ apiKey: key, httpOptions: { timeout: 10000 } }));
+  return clients.get(key);
+};
+const rotateKey = () => {
+  const n = keys().length;
+  if (n < 2) return false;
+  keyIndex = (keyIndex + 1) % n;
+  console.warn(`[gemini] switching to API key #${keyIndex + 1} of ${n}`);
+  return true;
+};
 
 /** Hard cap for a whole Gemini step (all fallback models included). Resolves to null on timeout. */
 const withCap = (promise, ms) =>
@@ -50,7 +71,13 @@ async function generate(params) {
         continue;
       }
       if (/429|RESOURCE_EXHAUSTED|quota/i.test(msg)) {
-        // Free-tier limits are per minute (and per day): rest this model for a minute
+        // Quota is per key+model. Try the same model on the next key first (if any),
+        // otherwise rest this model for a minute and move on.
+        if (!quotaRotated.has(m) && rotateKey()) {
+          quotaRotated.add(m);
+          setTimeout(() => quotaRotated.delete(m), QUOTA_COOLDOWN_MS).unref?.();
+          return generate(params);
+        }
         console.warn(`[gemini] model ${m} quota exceeded — cooling down 60 s, trying next model`);
         disabledUntil.set(m, Date.now() + QUOTA_COOLDOWN_MS);
         continue;
