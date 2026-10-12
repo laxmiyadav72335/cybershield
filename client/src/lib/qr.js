@@ -8,11 +8,14 @@ import jsQR from 'jsqr';
 const MAX_SIDE = 1600; // downscale huge photos for speed
 
 export function decodeImageData(imageData) {
-  // Try normal first, then inverted (white-on-black codes)
-  return (
-    jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' }) ||
-    jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'onlyInvert' })
-  );
+  // 'attemptBoth' tries the normal image, then the inverted one (white-on-black codes).
+  // Note: calling jsQR with 'onlyInvert' directly throws on images without a code,
+  // so we always use attemptBoth in a single call.
+  try {
+    return jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+  } catch {
+    return null;
+  }
 }
 
 export async function decodeImageFile(file) {

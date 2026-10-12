@@ -29,6 +29,10 @@ async function request(path, { method = 'GET', body, headers = {}, signal } = {}
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    // 502/503/504 come from the dev proxy or a hosting platform when the API itself is down
+    if ([502, 503, 504].includes(res.status)) {
+      throw new ApiError('Cannot reach the CyberShield server. Is the backend running?', { status: res.status, code: 'network' });
+    }
     const msg =
       res.status === 429
         ? data.message || 'You are scanning too fast. Please wait a few minutes and try again.'

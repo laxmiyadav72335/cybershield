@@ -79,7 +79,8 @@ export function analyzeUrlHeuristics(u) {
 
 /** Extract http(s) URLs from free text (used by the SMS/Email module). */
 export function extractUrls(text) {
-  const re = /\b((?:https?:\/\/|www\.)[^\s<>"']+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+\.(?:com|in|net|org|co|io|xyz|top|club|info|site|online|link|me|ly|app|shop|tk|ml|ga|cf|gq|buzz)\b(?:\/[^\s<>"']*)?)/gi;
+  // 1) explicit http(s):// or www.   2) bare domains like bit.ly/abc or sbi-kyc.xyz/claim
+  const re = /(?<![@\w.-])((?:https?:\/\/|www\.)[^\s<>"']+|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|in|net|org|co|io|xyz|top|club|info|site|online|link|me|ly|app|shop|tk|ml|ga|cf|gq|buzz)\b(?:\/[^\s<>"']*)?)/gi;
   const found = text.match(re) || [];
   return [...new Set(found.map((s) => s.replace(/[.,;:!?)]+$/, '')))].slice(0, 5);
 }

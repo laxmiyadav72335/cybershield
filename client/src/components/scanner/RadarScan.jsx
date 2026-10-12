@@ -33,7 +33,6 @@ export default function RadarScan({ lines = STATUS_LINES.url, title = 'Scanning'
       aria-live="polite"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-bg-900/85 p-4 backdrop-blur-md"
     >
       <motion.div

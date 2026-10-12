@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useParams, Navigate, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { SCANNERS, SCANNER_IDS, getScanner } from '../config/scanners';
 import { api } from '../services/api';
 import { saveLastResult } from '../lib/resultStore';
@@ -182,9 +182,9 @@ export default function Scanner() {
         </GlassCard>
       </div>
 
-      <AnimatePresence>
-        {scanning && <RadarScan lines={statusLines} title={`Scanning ${scanner.label.toLowerCase()}`} subtitle={subtitle} />}
-      </AnimatePresence>
+      {/* Rendered without AnimatePresence on purpose: the overlay must disappear the
+          instant a scan ends, even in a background tab where exit animations never run. */}
+      {scanning && <RadarScan lines={statusLines} title={`Scanning ${scanner.label.toLowerCase()}`} subtitle={subtitle} />}
     </div>
   );
 }
