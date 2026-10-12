@@ -8,7 +8,7 @@ import { normalizeUrl, getRegistrableDomain, analyzeUrlHeuristics } from '../uti
 import { checkSafeBrowsing } from './safeBrowsing.js';
 import { scanUrlWithVirusTotal } from './virusTotal.js';
 import { getDomainAge } from './rdap.js';
-import { explainFindings } from './gemini.js';
+import { explainFindings, fallbackExplanation } from './gemini.js';
 import { scoreUrl } from '../utils/threatScore.js';
 import { cacheGet, cacheSet } from '../utils/cache.js';
 import { httpError } from '../middleware/errorHandler.js';
@@ -39,7 +39,10 @@ export async function scanUrl(rawUrl, { skipCache = false, quick = false } = {})
 
   const { score, verdict, breakdown } = scoreUrl({ safeBrowsing, virusTotal, domainAge, heuristics });
 
-  const ai = await explainFindings({
+  // quick mode (links inside a message): skip the AI explanation — the message itself gets one
+  const ai = quick
+    ? { available: false, text: fallbackExplanation({ scanType: 'url', verdict, score, breakdown }) }
+    : await explainFindings({
     scanType: 'url',
     input: url,
     verdict,

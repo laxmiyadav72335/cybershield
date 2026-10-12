@@ -18,6 +18,7 @@ const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-fla
 // model → timestamp until which it is skipped (Infinity = retired, 60 s = quota cooldown)
 const disabledUntil = new Map();
 const QUOTA_COOLDOWN_MS = 60 * 1000;
+const OUTAGE_COOLDOWN_MS = 30 * 1000; // after a 503/504/timeout, don't retry that model for 30 s
 const candidates = () =>
   [...new Set([process.env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS])].filter((m) => (disabledUntil.get(m) || 0) < Date.now());
 export const model = () => candidates()[0] || DEFAULT_MODEL;
@@ -55,8 +56,9 @@ async function generate(params) {
         continue;
       }
       if (/503|504|UNAVAILABLE|DEADLINE|high demand|timeout/i.test(msg)) {
-        console.warn(`[gemini] ${m} slow/overloaded — trying next model`);
-        continue; // transient: don't disable permanently
+        console.warn(`[gemini] ${m} slow/overloaded — resting it 30 s, trying next model`);
+        disabledUntil.set(m, Date.now() + OUTAGE_COOLDOWN_MS);
+        continue;
       }
       throw err;
     }
