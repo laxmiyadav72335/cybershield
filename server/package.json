@@ -1,0 +1,24 @@
+{
+  "name": "cybershield-server",
+  "version": "1.0.0",
+  "description": "CyberShield API - proxies security APIs and computes threat scores",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@google/genai": "^2.28.0",
+    "axios": "^1.20.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "multer": "^2.4.0"
+  }
+}

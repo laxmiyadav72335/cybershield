@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Each user may read / write only their own profile document.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Scan history: a user can create scans tagged with their own uid,
+    // and read / delete only their own. Scans are immutable (no update).
+    match /scans/{scanId} {
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.keys().hasAll(['uid', 'scanType', 'threatScore', 'verdict', 'timestamp'])
+                    && request.resource.data.threatScore is number
+                    && request.resource.data.verdict in ['safe', 'suspicious', 'dangerous'];
+      allow read, delete: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    // Public live counter shown on the Home page. Anyone (guests included)
+    // may read it and increment totalScans by exactly 1 — nothing else.
+    match /stats/global {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['totalScans'])
+                    && request.resource.data.totalScans == 1;
+      allow update: if request.resource.data.keys().hasOnly(['totalScans'])
+                    && request.resource.data.totalScans == resource.data.totalScans + 1;
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

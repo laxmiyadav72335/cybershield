@@ -1,0 +1,25 @@
+# Render Blueprint for the CyberShield API (server/). Create a "Blueprint" in
+# Render, point it at this repo, and fill the secret env vars in the dashboard.
+services:
+  - type: web
+    name: cybershield-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: CLIENT_ORIGIN
+        value: https://your-app.vercel.app
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: VIRUSTOTAL_API_KEY
+        sync: false
+      - key: SAFE_BROWSING_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ABUSEIPDB_API_KEY
+        sync: false

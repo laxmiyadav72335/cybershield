@@ -1,0 +1,63 @@
+/**
+ * CyberShield API — Express entry point.
+ *
+ * Responsibilities
+ *  - Restrict CORS to CLIENT_ORIGIN
+ *  - Parse JSON bodies (small limit; files use multer in Phase 3)
+ *  - Rate-limit all /api/scan routes
+ *  - Mount scan routes and a health check
+ *  - Central error handler (never leaks stack traces or API keys)
+ */
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import scanRouter from './routes/scan.js';
+import { scanLimiter } from './middleware/rateLimiter.js';
+import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { configStatus } from './utils/config.js';
+
+const app = express();
+const PORT = Number(process.env.PORT) || 5001;
+
+// Render / Vercel sit behind a proxy; this makes req.ip the real client IP
+app.set('trust proxy', 1);
+
+// ─── CORS: only the configured client origin(s) may call this API ───────
+const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      // Allow server-to-server / curl (no Origin header) and whitelisted origins
+      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    methods: ['GET', 'POST'],
+  }),
+);
+
+app.use(express.json({ limit: '64kb' }));
+
+// ─── Routes ─────────────────────────────────────────────────────────────
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, service: 'cybershield-api', time: new Date().toISOString(), apis: configStatus() });
+});
+
+app.use('/api/scan', scanLimiter, scanRouter);
+
+app.use(notFound);
+app.use(errorHandler);
+
+app.listen(PORT, () => {
+  const status = configStatus();
+  console.log(`🛡  CyberShield API listening on http://localhost:${PORT}`);
+  console.log(`   CORS origins: ${allowedOrigins.join(', ')}`);
+  console.log(
+    `   Keys: ${Object.entries(status)
+      .map(([k, v]) => `${k}=${v ? '✓' : '✗'}`)
+      .join('  ')}`,
+  );
+});
