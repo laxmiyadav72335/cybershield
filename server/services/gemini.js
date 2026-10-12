@@ -7,9 +7,10 @@
 import { GoogleGenAI } from '@google/genai';
 import { hasKey } from '../utils/config.js';
 
-const model = () => process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const model = () => process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 let _ai = null;
-const ai = () => (_ai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }));
+// 12 s cap: the explanation is a nice-to-have, so a slow model never stalls a scan
+const ai = () => (_ai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { timeout: 12000 } }));
 
 /** Fallback text when Gemini is unavailable, so the UI always has an explanation. */
 export function fallbackExplanation({ scanType, verdict, score, breakdown, unavailable = [] }) {
@@ -37,7 +38,13 @@ ${Object.entries(extra).map(([k, v]) => `${k}: ${v}`).join('\n')}
 Write 2–3 short, plain-English sentences (no jargon, no markdown, no bullet points) telling the user
 what was found and what they should do. Be calm and specific.`;
   try {
-    const res = await ai().models.generateContent({ model: model(), contents: prompt, config: { temperature: 0.4, maxOutputTokens: 200 } });
+    const res = await ai().models.generateContent({ model: model(), contents: prompt, config: {
+        temperature: 0.4,
+        // Newer Gemini models spend output tokens on internal "thinking"; give
+        // headroom and turn thinking off for this short, simple task.
+        maxOutputTokens: 1024,
+        thinkingConfig: { thinkingBudget: 0 },
+      } });
     const text = (res.text || '').trim();
     return text ? { available: true, text } : { available: false, text: fallbackExplanation(ctx) };
   } catch (err) {
@@ -59,7 +66,7 @@ export async function analyzeMessage(text) {
     const res = await ai().models.generateContent({
       model: model(),
       contents: text,
-      config: { systemInstruction: MESSAGE_SYSTEM_PROMPT, responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 800 },
+      config: { systemInstruction: MESSAGE_SYSTEM_PROMPT, responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2048 },
     });
     const raw = (res.text || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
     const json = JSON.parse(raw);

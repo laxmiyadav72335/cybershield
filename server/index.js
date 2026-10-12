@@ -10,6 +10,10 @@
  */
 import 'dotenv/config';
 import express from 'express';
+
+// Trim stray whitespace around values pasted into .env (a leading space in an
+// API key would otherwise be sent in the header and rejected upstream).
+for (const [k, v] of Object.entries(process.env)) if (/_KEY$|_MODEL$|ORIGIN$/.test(k) && typeof v === 'string') process.env[k] = v.trim();
 import cors from 'cors';
 import scanRouter from './routes/scan.js';
 import { scanLimiter } from './middleware/rateLimiter.js';
