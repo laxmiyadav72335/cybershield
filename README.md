@@ -4,10 +4,11 @@ Check whether a **link, file, SMS/email message, QR code, IP address or password
 dangerous. CyberShield queries real security APIs (Google Safe Browsing, VirusTotal,
 AbuseIPDB, RDAP, Have I Been Pwned) and Gemini AI, then returns a **0–100 threat score**,
 a verdict (**Safe / Suspicious / Dangerous**) and a plain-language explanation.
+No account needed — nothing personal is stored.
 
 > Final-year B.Sc. Computer Science project. Stack: React + Vite + Tailwind + Framer Motion
-> on the front end, Node + Express on the back end, Firebase Auth + Firestore for users and
-> history. Deploys to Vercel (client) and Render (API).
+> on the front end, Node + Express on the back end, Firestore for the public scan counter.
+> Deploys to Vercel (client) and Render (API).
 
 ---
 
@@ -38,7 +39,6 @@ a verdict (**Safe / Suspicious / Dangerous**) and a plain-language explanation.
 | **IP Checker** | Abuse confidence, reports, country, ISP, usage type, proxy / hosting | AbuseIPDB, ip-api |
 | **Password Leak Checker** | k-anonymity breach lookup + local strength meter; password never leaves the browser | Have I Been Pwned range API |
 | **Result page** | Animated speedometer gauge, verdict badge, AI explanation, "why this score" breakdown, per-source cards, engine grid, red alert on Dangerous, PDF download | jsPDF |
-| **Dashboard** | Scan history, verdict doughnut, 7-day bar chart, re-open past reports | Firebase Auth (Google), Firestore, Chart.js |
 | **Awareness** | 7 Indian scam explainers with examples + helplines + 10-question quiz | — |
 
 UI: "Cyber Command Center" dark glassmorphism theme, radar scan animation with live status
@@ -51,16 +51,15 @@ lines, 3D-tilt scanner cards, mobile responsive, respects `prefers-reduced-motio
 ```
 ┌──────────────────────────────── Browser (React + Vite) ─────────────────────────────────┐
 │                                                                                           │
-│  Home ─ Scanner(6 tabs) ─ Result(gauge) ─ Dashboard(charts) ─ Awareness(quiz) ─ Login     │
+│  Home ─ Scanner(6 tabs) ─ Result(gauge) ─ Awareness(quiz)                                 │
 │                                                                                           │
 │  Runs locally in the browser:                                                             │
 │   • SHA-256 of files (Web Crypto)          • jsQR decode + UPI parse                      │
 │   • SHA-1 + k-anonymity password check  ───────────────────────────► api.pwnedpasswords  │
-│   • Threat gauge / PDF (jsPDF) / Chart.js                                                 │
+│   • Threat gauge / PDF (jsPDF)                                                            │
 │                                                                                           │
-│   Firebase SDK ──────────────────────────────────────────────────► Firebase Auth (Google) │
-│                                                                      Cloud Firestore      │
-│                                                                      users / scans / stats│
+│   Firebase SDK ──────────────────────────────────────────────────► Cloud Firestore        │
+│                                                                      stats/global counter │
 └───────────────┬───────────────────────────────────────────────────────────────────────────┘
                 │  HTTPS  /api/scan/{url|file|message|ip}   (CORS = CLIENT_ORIGIN only)
                 ▼
@@ -89,7 +88,7 @@ user pastes URL → UrlScanForm validates → POST /api/scan/url
   → scoreUrl() → {score, verdict, breakdown}
   → Gemini explains (fallback template if no key)
   → cache 1 h → JSON report
-→ radar overlay (min 2.4 s) → navigate to /result → gauge animates → saved to Firestore if signed in
+→ radar overlay (min 2.4 s) → navigate to /result → gauge animates → public counter +1
 ```
 
 ---
@@ -100,7 +99,7 @@ user pastes URL → UrlScanForm validates → POST /api/scan/url
 CollageProject/
 ├── package.json            `npm run dev` starts API + client together (concurrently)
 ├── README.md
-├── firestore.rules         Firestore security rules (users own their scans; public +1 counter)
+├── firestore.rules         Firestore security rules (public +1 counter only)
 ├── firebase.json           Firebase CLI config
 ├── render.yaml             Render blueprint for the API
 ├── .claude/launch.json     Dev-server launch config (Claude desktop)
@@ -109,16 +108,15 @@ CollageProject/
 │   ├── vercel.json         SPA rewrite + security headers
 │   ├── .env.example        VITE_FIREBASE_* (public) + VITE_API_BASE_URL
 │   └── src/
-│       ├── App.jsx                 Lazy-loaded routes, AuthProvider, ProtectedRoute
+│       ├── App.jsx                 Lazy-loaded routes
 │       ├── index.css               Theme tokens (@theme), glass utilities, reduced-motion
 │       ├── config/
 │       │   ├── scanners.js         Single source of truth for the 6 modules + verdict map
 │       │   ├── scams.js            Awareness content (7 scams + helplines)
 │       │   └── quiz.js             10 quiz questions
-│       ├── context/AuthContext.jsx Google sign-in, profile upsert, auth state
 │       ├── services/
 │       │   ├── api.js              fetch wrapper for the Express API
-│       │   └── scans.js            Firestore: save / fetch / delete scans, public counter
+│       │   └── scans.js            Firestore: public scan counter
 │       ├── lib/
 │       │   ├── firebase.js         Guarded Firebase bootstrap (works without keys)
 │       │   ├── hash.js             Web Crypto SHA-256 / SHA-1
@@ -135,9 +133,8 @@ CollageProject/
 │       │   ├── home/               Hero, AnimatedShield, LiveStats, ScannerCards, HowItWorks
 │       │   ├── scanner/            RadarScan + one form per module + QrCamera
 │       │   ├── result/             ThreatGauge, VerdictBadge, DangerAlert, EngineGrid, *Findings
-│       │   ├── dashboard/          VerdictPie, WeeklyBar, HistoryTable
 │       │   └── awareness/          ScamCard, Quiz
-│       └── pages/                  Home, Scanner, Result, Dashboard, Awareness, Login, NotFound
+│       └── pages/                  Home, Scanner, Result, Awareness, NotFound
 │
 └── server/                 Node 18+ / Express 5 (ES modules)
     ├── index.js            CORS, JSON limit, rate limit, routes, error handler, /api/health
@@ -177,8 +174,8 @@ Open <http://localhost:5173>. The client proxies `/api/*` to the API on port **5
 
 **Without any keys** the app still runs: link heuristics, RDAP domain age, rule-based message
 analysis, IP geolocation, QR decoding and the password checker all work, and the Result page
-marks missing sources as "Not configured" with a *Partial result* banner. Sign-in and the
-dashboard need Firebase (see below).
+marks missing sources as "Not configured" with a *Partial result* banner. The live
+"Total scans" tile on the Home page needs Firebase (see below); otherwise it shows a demo number.
 
 Health check: `curl http://localhost:5001/api/health` lists which keys are loaded.
 
@@ -199,31 +196,24 @@ RDAP (domain age), ip-api (geolocation) and Have I Been Pwned (passwords) need n
 
 ---
 
-## Firebase setup
+## Firebase setup (optional — live scan counter)
 
-1. Firebase console → create a project → **Authentication → Sign-in method → Google → Enable**.
-2. **Firestore Database → Create database** (production mode).
-3. Project settings → *Your apps* → Web app → copy the config into `client/.env` as `VITE_FIREBASE_*`.
-4. Deploy the security rules:
+Firestore is used for one thing: the public "Total scans" number on the Home page.
+There are no accounts and no personal data.
+
+1. Firebase console → create a project → **Firestore Database → Create database**
+   (production mode).
+2. Project settings → *Your apps* → Web app → copy the config into `client/.env` as
+   `VITE_FIREBASE_*` (see `client/.env.example`).
+3. Publish the rules: paste `firestore.rules` into Firestore → Rules → Publish, or
 
 ```bash
 npm install -g firebase-tools && firebase login && firebase use <project-id> && firebase deploy --only firestore:rules
 ```
 
-   (or paste `firestore.rules` into Firestore → Rules in the console).
-5. After deploying, add your Vercel domain under Authentication → Settings → Authorized domains.
-
-Data model:
-
 | Collection | Document | Fields |
 |------------|----------|--------|
-| `users` | `{uid}` | uid, name, email, photoURL, joinDate, lastLogin, totalScans |
-| `scans` | auto-id | uid, scanType, inputPreview, threatScore, verdict, summary, timestamp, report (not for messages) |
-| `stats` | `global` | totalScans — public live counter on the Home page |
-
-Rules: users read/write only their own profile and scans; scans are immutable; anyone may
-increment `stats/global.totalScans` by exactly 1. Guests can scan but nothing is saved for them.
-The dashboard filters by `uid` and sorts client-side, so no composite index is needed.
+| `stats` | `global` | totalScans — anyone may read it and increment it by exactly 1 |
 
 ---
 
@@ -296,15 +286,14 @@ Every report has the same shape:
 - **Passwords**: never leave the browser. SHA-1 locally, only the first 5 hex characters go to
   `api.pwnedpasswords.com/range/{prefix}` with `Add-Padding: true`; the suffix comparison
   happens locally. The form clears on submit and the saved report holds a masked preview only.
-- **Messages**: the full text goes to Gemini for analysis but only the preview and summary are
-  stored in Firestore.
+- **Messages**: the full text goes to Gemini for analysis and is never stored anywhere.
 - **QR codes**: decoded entirely in the browser; only a decoded URL is sent to the API.
 - **Input validation**: URL normalisation, IP validation with `net.isIP`, message length cap,
   32 MB upload cap, JSON body limit 64 kB, SHA-256 format check.
 - **Graceful degradation**: `Promise.all` over sources that never throw — a failing API is
   marked `available: false` and the UI shows a *Partial result* banner instead of a false "Safe".
 - **Rate limiting + cache** protect the VirusTotal free tier (4 req/min).
-- Firestore rules: users can only read / create / delete their own scans; scans are immutable.
+- Firestore rules: the only writable document is the public counter, and only by +1.
 
 ---
 
@@ -323,7 +312,6 @@ Every report has the same shape:
 1. *New Project* → import the repo → **Root Directory: `client`** (framework: Vite).
 2. Environment variables: all `VITE_FIREBASE_*` plus `VITE_API_BASE_URL=https://cybershield-api.onrender.com`.
 3. Deploy. `client/vercel.json` rewrites all routes to `index.html` (SPA) and adds security headers.
-4. Add the Vercel domain to Firebase → Authentication → Authorized domains.
 
 Free Render instances sleep after inactivity; the first request may take ~30 s.
 

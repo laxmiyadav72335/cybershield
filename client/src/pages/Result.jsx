@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { loadLastResult } from '../lib/resultStore';
 import { getScanner } from '../config/scanners';
 import { downloadPdf } from '../lib/pdfReport';
-import { useAuth } from '../context/AuthContext';
 import GlassCard from '../components/ui/GlassCard';
 import Button from '../components/ui/Button';
 import Icon from '../components/ui/Icon';
@@ -31,8 +30,6 @@ export default function Result() {
   const reduce = useReducedMotion();
   const [result] = useState(() => location.state?.result || loadLastResult());
   const [shake, setShake] = useState(false);
-  const { user, configured } = useAuth();
-  const savedFor = location.state?.savedFor;
 
   const dangerous = result?.verdict === 'dangerous';
   useEffect(() => {
@@ -68,10 +65,6 @@ export default function Result() {
           <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
             <span>Scanned {scannedAt}</span>
             {result.cached && <span>· served from cache</span>}
-            {savedFor && user?.uid === savedFor && <span className="text-safe">· saved to your history</span>}
-            {configured && !user && !result.local && (
-              <span>· <Link to="/login" state={{ from: '/result' }} className="text-cyber-cyan hover:underline">sign in</Link> to save history</span>
-            )}
           </p>
         </div>
         <div className="flex shrink-0 gap-2">

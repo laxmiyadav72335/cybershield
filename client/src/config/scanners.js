@@ -1,8 +1,7 @@
 /**
  * Single source of truth for the six scanner modules.
- * Used by: Home scanner cards, Scanner page tabs, Result page labels,
- * and the Dashboard history table. Keep IDs stable — they are also the
- * `scanType` stored in Firestore and the route segment (/scan/:type).
+ * Used by: Home scanner cards, Scanner page tabs and Result page labels.
+ * Keep IDs stable — they are also the route segment (/scan/:type).
  */
 export const SCANNERS = [
   {
@@ -77,7 +76,7 @@ export const SCANNER_IDS = SCANNERS.map((s) => s.id);
 
 export const getScanner = (id) => SCANNERS.find((s) => s.id === id);
 
-/** Verdict → colour/label map shared by badges, gauge and charts. */
+/** Verdict → colour/label map shared by badges and the gauge. */
 export const VERDICTS = {
   safe: { label: 'Safe', color: '#22C55E', text: 'text-safe', bg: 'bg-safe/15', ring: 'ring-safe/40' },
   suspicious: { label: 'Suspicious', color: '#F59E0B', text: 'text-suspicious', bg: 'bg-suspicious/15', ring: 'ring-suspicious/40' },

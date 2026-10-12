@@ -1,11 +1,9 @@
 /**
- * Firebase bootstrap.
- * Initialises Firebase only when the VITE_FIREBASE_* variables are present,
- * so the UI still runs (in "guest / demo" mode) before Firebase is configured.
- * Auth + Firestore helpers are added in Phase 5.
+ * Firebase bootstrap (Firestore only — used for the public "total scans" counter).
+ * Initialises only when the VITE_FIREBASE_* variables are present, so the UI
+ * still runs (showing a demo number) before Firebase is configured.
  */
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -20,15 +18,11 @@ const firebaseConfig = {
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
 let app = null;
-let auth = null;
 let db = null;
-let googleProvider = null;
 
 if (isFirebaseConfigured) {
   app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-  auth = getAuth(app);
   db = getFirestore(app);
-  googleProvider = new GoogleAuthProvider();
 }
 
-export { app, auth, db, googleProvider };
+export { app, db };

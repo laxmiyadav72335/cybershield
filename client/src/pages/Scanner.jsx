@@ -4,8 +4,7 @@ import { motion } from 'framer-motion';
 import { SCANNERS, SCANNER_IDS, getScanner } from '../config/scanners';
 import { api } from '../services/api';
 import { saveLastResult } from '../lib/resultStore';
-import { useAuth } from '../context/AuthContext';
-import { saveScan, bumpGlobalCounter } from '../services/scans';
+import { bumpGlobalCounter } from '../services/scans';
 import GlassCard from '../components/ui/GlassCard';
 import Icon from '../components/ui/Icon';
 import PageHeader from '../components/ui/PageHeader';
@@ -33,7 +32,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 export default function Scanner() {
   const { type = 'url' } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [scanning, setScanning] = useState(false);
   const [statusLines, setStatusLines] = useState(STATUS_LINES.url);
   const [subtitle, setSubtitle] = useState('');
@@ -57,11 +55,8 @@ export default function Scanner() {
     try {
       const [result] = await Promise.all([fn(abortRef.current.signal), wait(MIN_SCAN_MS)]);
       saveLastResult(result);
-      // Fire-and-forget persistence: public counter for everyone, history for signed-in users
-      bumpGlobalCounter();
-      const savedPromise = user ? saveScan(user, result) : Promise.resolve(null);
-      navigate('/result', { state: { result, savedFor: user ? user.uid : null } });
-      savedPromise.then((id) => { if (id) saveLastResult({ ...result, savedId: id }); });
+      bumpGlobalCounter(); // fire-and-forget public counter
+      navigate('/result', { state: { result } });
     } catch (err) {
       if (err.name !== 'AbortError') setError(err);
     } finally {
