@@ -12,6 +12,17 @@ let _ai = null;
 // 12 s cap: the explanation is a nice-to-have, so a slow model never stalls a scan
 const ai = () => (_ai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { timeout: 12000 } }));
 
+/** Gemini occasionally answers 503 "high demand"; wait briefly and retry once before giving up. */
+async function generate(params) {
+  try {
+    return await ai().models.generateContent(params);
+  } catch (err) {
+    if (!/503|UNAVAILABLE|high demand/i.test(err.message || '')) throw err;
+    await new Promise((r) => setTimeout(r, 1500));
+    return ai().models.generateContent(params);
+  }
+}
+
 /** Fallback text when Gemini is unavailable, so the UI always has an explanation. */
 export function fallbackExplanation({ scanType, verdict, score, breakdown, unavailable = [] }) {
   const reasons = breakdown.map((b) => b.label.toLowerCase());
@@ -38,7 +49,7 @@ ${Object.entries(extra).map(([k, v]) => `${k}: ${v}`).join('\n')}
 Write 2–3 short, plain-English sentences (no jargon, no markdown, no bullet points) telling the user
 what was found and what they should do. Be calm and specific.`;
   try {
-    const res = await ai().models.generateContent({ model: model(), contents: prompt, config: {
+    const res = await generate({ model: model(), contents: prompt, config: {
         temperature: 0.4,
         // Newer Gemini models spend output tokens on internal "thinking"; give
         // headroom and turn thinking off for this short, simple task.
@@ -63,7 +74,7 @@ Rules: phrases in redFlags must be copied verbatim from the message. riskScore r
 export async function analyzeMessage(text) {
   if (!hasKey('GEMINI_API_KEY')) return { available: false, reason: 'not_configured' };
   try {
-    const res = await ai().models.generateContent({
+    const res = await generate({
       model: model(),
       contents: text,
       config: { systemInstruction: MESSAGE_SYSTEM_PROMPT, responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2048 },
