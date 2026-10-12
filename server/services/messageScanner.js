@@ -25,7 +25,7 @@ export async function scanMessage(rawText) {
   // AI + rules + link scans all in parallel
   const [aiRaw, linkReports] = await Promise.all([
     analyzeMessage(text),
-    Promise.all(urls.map((u) => scanUrl(u).catch(() => null))),
+    Promise.all(urls.map((u) => scanUrl(u, { quick: true }).catch(() => null))),
   ]);
   const rules = analyzeMessageHeuristics(text);
 

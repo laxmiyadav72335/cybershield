@@ -15,8 +15,11 @@ const DEFAULT_MODEL = 'gemini-3.5-flash';
  * rest of the process so every scan doesn't pay the failure again.
  */
 const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
-const disabledModels = new Set();
-const candidates = () => [...new Set([process.env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS])].filter((m) => !disabledModels.has(m));
+// model → timestamp until which it is skipped (Infinity = retired, 60 s = quota cooldown)
+const disabledUntil = new Map();
+const QUOTA_COOLDOWN_MS = 60 * 1000;
+const candidates = () =>
+  [...new Set([process.env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS])].filter((m) => (disabledUntil.get(m) || 0) < Date.now());
 export const model = () => candidates()[0] || DEFAULT_MODEL;
 
 let _ai = null;
@@ -27,8 +30,8 @@ const ai = () => (_ai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, 
 const withCap = (promise, ms) =>
   Promise.race([promise.catch(() => null), new Promise((r) => setTimeout(() => r(null), ms))]);
 
-const EXPLAIN_CAP_MS = 7000;   // nice-to-have text: never make the user wait longer than this
-const ANALYZE_CAP_MS = 12000;  // message classification is the main result, allow a bit more
+const EXPLAIN_CAP_MS = 8000;   // nice-to-have text: never make the user wait longer than this
+const ANALYZE_CAP_MS = 20000;  // message classification is the main result, allow a bit more
 
 async function generate(params) {
   let lastErr;
@@ -40,9 +43,15 @@ async function generate(params) {
     } catch (err) {
       lastErr = err;
       const msg = err.message || '';
-      if (/404|NOT_FOUND|no longer available/i.test(msg) || /429|RESOURCE_EXHAUSTED|quota/i.test(msg)) {
-        console.warn(`[gemini] ${m} unavailable (${/429|quota/i.test(msg) ? 'quota exhausted' : 'not found'}) — trying next model`);
-        disabledModels.add(m);
+      if (/404|NOT_FOUND|no longer available/i.test(msg)) {
+        console.warn(`[gemini] model ${m} not found — retired? trying next model`);
+        disabledUntil.set(m, Infinity);
+        continue;
+      }
+      if (/429|RESOURCE_EXHAUSTED|quota/i.test(msg)) {
+        // Free-tier limits are per minute (and per day): rest this model for a minute
+        console.warn(`[gemini] model ${m} quota exceeded — cooling down 60 s, trying next model`);
+        disabledUntil.set(m, Date.now() + QUOTA_COOLDOWN_MS);
         continue;
       }
       if (/503|504|UNAVAILABLE|DEADLINE|high demand|timeout/i.test(msg)) {
@@ -98,7 +107,8 @@ what was found and what they should do. Be calm and specific.`;
 }
 
 const MESSAGE_SYSTEM_PROMPT = `You are a scam-detection expert for SMS and email messages, especially Indian scams
-(KYC fraud, OTP theft, fake job offers, electricity-bill disconnection threats, lottery/prize, UPI "receive money", courier/customs, loan apps).
+(KYC fraud, OTP theft, fake job offers, electricity-bill disconnection threats, lottery/prize, UPI "receive money", courier/customs, loan apps, "digital arrest" police impersonation).
+Messages may be in English, Hindi or Hinglish (Hindi written in Latin letters) — analyse them all the same way.
 Analyse the user's message and respond with STRICT JSON ONLY — no markdown, no commentary — matching exactly:
 {"verdict":"safe|suspicious|scam","riskScore":0-100,"scamType":"string (or 'none')","redFlags":[{"phrase":"exact phrase copied from the message","reason":"why it is a red flag"}],"explanation":"2-3 plain sentences","advice":"1-2 sentences of what the user should do"}
 Rules: phrases in redFlags must be copied verbatim from the message. riskScore reflects how likely this is a scam.`;

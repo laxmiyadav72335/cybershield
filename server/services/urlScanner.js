@@ -15,7 +15,7 @@ import { httpError } from '../middleware/errorHandler.js';
 
 const settled = (p) => p.then((v) => v).catch((e) => ({ available: false, reason: 'error', error: e.message }));
 
-export async function scanUrl(rawUrl, { skipCache = false } = {}) {
+export async function scanUrl(rawUrl, { skipCache = false, quick = false } = {}) {
   const u = normalizeUrl(rawUrl);
   if (!u) throw httpError(400, 'invalid_url', 'Please enter a valid http:// or https:// link.');
   const url = u.href;
@@ -33,7 +33,7 @@ export async function scanUrl(rawUrl, { skipCache = false } = {}) {
   // All network sources in parallel
   const [safeBrowsing, virusTotal, domainAge] = await Promise.all([
     settled(checkSafeBrowsing(url)),
-    settled(scanUrlWithVirusTotal(url)),
+    settled(scanUrlWithVirusTotal(url, { quick })),
     heuristics.isIpUrl ? Promise.resolve({ available: false, reason: 'ip_url' }) : settled(getDomainAge(registrable)),
   ]);
 

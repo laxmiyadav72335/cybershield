@@ -72,8 +72,21 @@ export function estimateStrength(pw) {
   let entropy = pw.length * Math.log2(charset || 1);
 
   const lower = pw.toLowerCase();
-  if (COMMON.some((c) => lower === c || lower.replace(/[^a-z0-9]/g, '') === c)) { entropy = Math.min(entropy, 10); warnings.push('This is one of the most common passwords in the world.'); }
-  else if (COMMON.some((c) => c.length >= 5 && lower.includes(c))) { entropy -= 12; warnings.push('Contains a very common word.'); }
+  // De-leet: P@ssw0rd → password, so substitutions don't hide a dictionary word
+  const deleet = lower.replace(/@/g, 'a').replace(/0/g, 'o').replace(/1|!/g, 'i').replace(/3/g, 'e').replace(/\$|5/g, 's').replace(/7/g, 't').replace(/4/g, 'a');
+  const exact = COMMON.some((c) => lower === c || deleet === c || lower.replace(/[^a-z0-9]/g, '') === c || deleet.replace(/[^a-z0-9]/g, '') === c);
+  const containedWord = COMMON.find((c) => c.length >= 5 && (lower.includes(c) || deleet.includes(c)));
+  if (exact) { entropy = Math.min(entropy, 10); warnings.push('This is one of the most common passwords in the world.'); }
+  else if (containedWord) {
+    // A common word that makes up most of the password leaves little to guess (Password1, iloveyou2)
+    const share = containedWord.length / pw.length;
+    entropy = share >= 0.6 ? Math.min(entropy, 20) : entropy - 12;
+    warnings.push('Contains a very common word.');
+  }
+  // Few distinct characters (aaaaaaaa, xyxyxyxy) are trivial regardless of length
+  const unique = new Set(pw).size;
+  const uniqueCap = unique * Math.log2(charset || 1) + Math.log2(pw.length) * 2;
+  if (uniqueCap < entropy) entropy = uniqueCap;
   if (SEQUENCES.some((s) => { for (let i = 0; i + 4 <= lower.length; i++) if (s.includes(lower.slice(i, i + 4))) return true; return false; })) { entropy -= 10; warnings.push('Contains a keyboard or alphabet sequence (e.g. "1234", "qwer").'); }
   if (/(.)\1{2,}/.test(pw)) { entropy -= 8; warnings.push('Repeated characters ("aaa", "111") add almost no strength.'); }
   if (/(19|20)\d\d/.test(pw)) { entropy -= 6; warnings.push('Years are easy to guess — attackers try them first.'); }

@@ -44,7 +44,8 @@ async function request(path, { method = 'GET', body, headers = {}, signal } = {}
 
 export const api = {
   health: () => request('/api/health'),
-  scanUrl: (url, opts) => request('/api/scan/url', { method: 'POST', body: { url }, ...opts }),
+  /** opts.fresh bypasses the server's 1-hour cache (used by "Check again") */
+  scanUrl: (url, { fresh, ...opts } = {}) => request(`/api/scan/url${fresh ? '?fresh=1' : ''}`, { method: 'POST', body: { url }, ...opts }),
   // Phase 3+
   scanMessage: (text, opts) => request('/api/scan/message', { method: 'POST', body: { text }, ...opts }),
   scanIp: (ip, opts) => request(`/api/scan/ip?ip=${encodeURIComponent(ip)}`, opts),

@@ -82,7 +82,8 @@ async function pollAnalysis(analysisId) {
   return { available: true, status: 'queued', analysisId, stats: null, engines: [], message: 'VirusTotal is still analysing this item. Try again in a minute for full engine results.' };
 }
 
-export async function scanUrlWithVirusTotal(url) {
+/** @param {{quick?: boolean}} opts quick = submit unknown URLs but don't wait for the analysis (used for links inside messages) */
+export async function scanUrlWithVirusTotal(url, { quick = false } = {}) {
   if (!hasKey('VIRUSTOTAL_API_KEY')) return { available: false, status: 'not_configured', reason: 'not_configured' };
   const vt = client();
   const id = vtUrlId(url);
@@ -102,6 +103,9 @@ export async function scanUrlWithVirusTotal(url) {
     const form = new URLSearchParams({ url });
     const { data } = await vt.post('/urls', form, { headers: { 'content-type': 'application/x-www-form-urlencoded' } });
     const analysisId = data?.data?.id;
+    if (quick) {
+      return { available: true, status: 'queued', analysisId, stats: null, engines: [], permalink, submitted: true, message: 'Submitted to VirusTotal — engine results will be ready in about a minute.' };
+    }
     const result = await pollAnalysis(analysisId);
     return { ...result, permalink, submitted: true };
   } catch (err) {

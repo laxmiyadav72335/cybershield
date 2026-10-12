@@ -6,7 +6,17 @@
  */
 const PATTERNS = [
   { re: /\b(kyc|know your customer)\b/i, pts: 20, type: 'KYC fraud', reason: 'Banks never ask you to "update KYC" through a link in a message.' },
-  { re: /\b(otp|one[- ]time password|verification code)\b/i, pts: 20, type: 'OTP scam', reason: 'No bank, company or government office will ever ask for your OTP.' },
+  // Only flag OTP when the message ASKS for it — genuine OTP deliveries say "do not share"
+  { re: /(?<!\b(?:not|never|don'?t|dont|mat|nahi|kabhi)\s)\b(share|send|tell|provide|enter|confirm|verify|reply with|batayein|bataye|bhejein|bhejo|dein)\b[^.]{0,40}\b(otp|one[- ]time password|verification code|pin)\b|\b(otp|pin)\b[^.]{0,30}\b(?<!\b(?:not|never|don'?t|mat|nahi|kabhi)\s)(share|send|tell|provide|batayein|bataye|bhejein|bhejo|dein)\b/i, pts: 20, type: 'OTP scam', reason: 'No bank, company or government office will ever ask for your OTP or PIN.' },
+  { re: /\b(cyber ?cell|cyber ?crime|cbi|narcotics|ncb|customs|police|court|rbi)\b[\s\S]{0,120}\b(parcel|aadhaar|drugs|illegal|arrest|warrant|money laundering|case)\b/i, pts: 30, type: 'Digital arrest', reason: 'Police, CBI or customs never contact you over phone/video about parcels or cases — this is the "digital arrest" scam.' },
+  { re: /\b(stay on (the|this) (call|line)|do not (inform|tell|disconnect|share this with)|don'?t (inform|tell|disconnect)|safe account|rbi account|verification account)\b/i, pts: 30, type: 'Digital arrest', reason: 'Isolating you ("do not tell anyone", "stay on the call") and moving money to a "safe account" are hallmarks of digital-arrest fraud.' },
+  // Hinglish patterns
+  { re: /\b(band|block|bandh|freeze|suspend)\s+(ho|kar)\s*(jayega|jayegi|diya jayega|jaega|jaayega|jayenge)\b/i, pts: 20, type: 'Account-block threat', reason: 'Threatening that your account "band ho jayega" is a pressure tactic.' },
+  { re: /\b(turant|abhi|jaldi|aaj hi|24 ghante|aaj raat|fauran)\b/i, pts: 10, type: 'Urgency pressure', reason: 'Words like "turant" / "aaj hi" create artificial urgency.' },
+  { re: /\b(jeeta|jeete|jeet gaye|inaam|badhai ho|mubarak|lakh ka|crore ka)\b/i, pts: 20, type: 'Lottery / prize scam', reason: 'You cannot win a prize you never entered — "aapne jeeta hai" is a classic hook.' },
+  { re: /\b(fee|shulk|charge|paise|rupaye|rs\.?\s*\d+)\b[^.]{0,40}\b(bhejein|bhejo|bhej do|jama karein|jama karo|pay karein|pay karo|transfer karein)\b/i, pts: 20, type: 'Advance-fee scam', reason: 'Asking you to send money first ("paise bhejein") to receive something is a scam pattern.' },
+  { re: /\b(kyc|khata|account|sim|aadhaar|pan)\b[^.]{0,30}\b(update|verify|link)\s*(karein|karo|kare|karna|kijiye)\b/i, pts: 20, type: 'KYC fraud', reason: 'Banks never ask you to "KYC update karein" through a message link.' },
+  { re: /\b(click|tap|open)\s*(karein|karo|kare|kijiye)\b|\blink\s*(par|pe)\s*(click|tap)/i, pts: 10, type: 'Phishing link', reason: 'Scam messages push you to click a link instead of using the official app.' },
   { re: /\b(account|a\/c|card|sim|number|service|electricity|power|connection)\s+(will be|is|has been|gets?)\s+(blocked|suspended|deactivated|disconnected|closed|terminated)/i, pts: 20, type: 'Account-block threat', reason: 'Threatening to block your account creates panic so you act without thinking.' },
   { re: /\b(today|tonight|within \d+ (hours?|hrs|minutes?)|immediately|urgent(ly)?|last (chance|day|warning)|expir(es|ing) (today|soon))\b/i, pts: 10, type: 'Urgency pressure', reason: 'Artificial urgency is a classic pressure tactic.' },
   { re: /\b(won|winner|lottery|lucky draw|prize|jackpot|reward|congratulations)\b/i, pts: 20, type: 'Lottery / prize scam', reason: 'You cannot win a lottery you never entered.' },

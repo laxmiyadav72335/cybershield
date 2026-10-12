@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { loadLastResult } from '../lib/resultStore';
+import { loadLastResult, saveLastResult } from '../lib/resultStore';
+import { api } from '../services/api';
 import { getScanner } from '../config/scanners';
 import { downloadPdf } from '../lib/pdfReport';
 import GlassCard from '../components/ui/GlassCard';
@@ -28,8 +29,38 @@ const FINDINGS = { url: UrlFindings, file: FileFindings, message: MessageFinding
 export default function Result() {
   const location = useLocation();
   const reduce = useReducedMotion();
-  const [result] = useState(() => location.state?.result || loadLastResult());
+  const [result, setResult] = useState(() => location.state?.result || loadLastResult());
   const [shake, setShake] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
+  const [recheckError, setRecheckError] = useState('');
+
+  /**
+   * VirusTotal returns "queued" when it has just received a brand-new URL or
+   * file; engine results arrive ~1 min later. "Check again" repeats only the
+   * lookup (hash / URL id) — no re-upload — and swaps in the full report.
+   */
+  const vtQueued = result?.sources?.virusTotal?.status === 'queued';
+  const recheck = async () => {
+    setRechecking(true);
+    setRecheckError('');
+    try {
+      let fresh;
+      if (result.scanType === 'file') {
+        fresh = await api.scanFile(JSON.stringify({ sha256: result.sha256, fileName: result.fileName, size: result.size, mimeType: result.mimeType }), { headers: { 'content-type': 'application/json' } });
+      } else {
+        const link = await api.scanUrl(result.linkInput || result.input, { fresh: true });
+        // keep QR wrapper fields if this was a QR → link scan
+        fresh = result.scanType === 'qr' ? { ...link, scanType: 'qr', qr: result.qr, linkInput: result.linkInput, inputPreview: result.inputPreview, summary: `QR opens a link. ${link.summary}` } : link;
+      }
+      if (fresh.needsUpload) throw new Error('VirusTotal has not finished analysing this file yet. Try again in a minute.');
+      saveLastResult(fresh);
+      setResult(fresh);
+    } catch (err) {
+      setRecheckError(err.message || 'Could not refresh the result.');
+    } finally {
+      setRechecking(false);
+    }
+  };
 
   const dangerous = result?.verdict === 'dangerous';
   useEffect(() => {
@@ -91,6 +122,26 @@ export default function Result() {
             <span className="font-semibold text-suspicious">Partial result.</span> {unavailable.join(', ')} could not be
             checked, so the score may be lower than the real risk.
           </p>
+        </motion.div>
+      )}
+
+      {vtQueued && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          role="status"
+          className="mb-4 flex flex-col gap-3 rounded-xl border border-cyber-cyan/40 bg-cyber-cyan/10 px-4 py-3 text-sm sm:flex-row sm:items-center"
+        >
+          <Icon name="bolt" className="h-4 w-4 shrink-0 text-cyber-cyan" />
+          <p className="flex-1 text-slate-200">
+            <span className="font-semibold text-cyber-cyan">VirusTotal is still analysing this item.</span> Engine results
+            usually arrive within a minute — check again to update the score.
+          </p>
+          <Button size="sm" variant="secondary" onClick={recheck} disabled={rechecking}>
+            {rechecking ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyber-cyan/30 border-t-cyber-cyan" /> : <Icon name="scan" className="h-4 w-4" />}
+            {rechecking ? 'Checking…' : 'Check again'}
+          </Button>
+          {recheckError && <span className="text-xs text-suspicious">{recheckError}</span>}
         </motion.div>
       )}
 
