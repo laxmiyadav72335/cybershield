@@ -105,7 +105,7 @@ export function scoreUrl({ safeBrowsing, virusTotal, domainAge, heuristics }) {
   return { score: finalScore, verdict: verdictFromScore(finalScore), breakdown };
 }
 
-/** File score: VirusTotal detections only (Phase 3). */
+/** File score: VirusTotal detections only. */
 export function scoreFile({ virusTotal }) {
   if (!virusTotal?.available || !virusTotal.stats) {
     return { score: null, verdict: 'unknown', breakdown: [] };
@@ -124,7 +124,7 @@ export function scoreFile({ virusTotal }) {
   return { score: finalScore, verdict: verdictFromScore(finalScore), breakdown };
 }
 
-/** IP score: AbuseIPDB confidence + report-volume bonus (Phase 3). */
+/** IP score: AbuseIPDB confidence + report-volume bonus. */
 export function scoreIp({ abuseIpdb }) {
   const W = WEIGHTS.ip;
   const breakdown = [];
@@ -141,7 +141,7 @@ export function scoreIp({ abuseIpdb }) {
   return { score: finalScore, verdict: verdictFromScore(finalScore), breakdown };
 }
 
-/** Message score: Gemini riskScore + half of the worst embedded link score (Phase 3). */
+/** Message score: Gemini riskScore + half of the worst embedded link score. */
 export function scoreMessage({ ai, rules, linkScans = [] }) {
   const W = WEIGHTS.message;
   const breakdown = [];

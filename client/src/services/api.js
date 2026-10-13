@@ -46,7 +46,6 @@ export const api = {
   health: () => request('/api/health'),
   /** opts.fresh bypasses the server's 1-hour cache (used by "Check again") */
   scanUrl: (url, { fresh, ...opts } = {}) => request(`/api/scan/url${fresh ? '?fresh=1' : ''}`, { method: 'POST', body: { url }, ...opts }),
-  // Phase 3+
   scanMessage: (text, opts) => request('/api/scan/message', { method: 'POST', body: { text }, ...opts }),
   scanIp: (ip, opts) => request(`/api/scan/ip?ip=${encodeURIComponent(ip)}`, opts),
   /** body: JSON string (hash-only lookup) or FormData (upload) */

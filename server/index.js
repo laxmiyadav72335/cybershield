@@ -3,7 +3,7 @@
  *
  * Responsibilities
  *  - Restrict CORS to CLIENT_ORIGIN
- *  - Parse JSON bodies (small limit; files use multer in Phase 3)
+ *  - Parse JSON bodies (small limit; file uploads use multer)
  *  - Rate-limit all /api/scan routes
  *  - Mount scan routes and a health check
  *  - Central error handler (never leaks stack traces or API keys)
@@ -24,7 +24,7 @@ import { allowedClientOrigins } from './utils/origins.js';
 const app = express();
 const PORT = Number(process.env.PORT) || 5001;
 
-// Render / Vercel sit behind a proxy; this makes req.ip the real client IP
+// Hosting platforms sit behind a proxy; this makes req.ip the real client IP
 app.set('trust proxy', 1);
 
 // ─── CORS: only the configured client origin(s) may call this API ───────

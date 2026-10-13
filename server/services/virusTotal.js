@@ -5,7 +5,7 @@
  * URL flow ("hash-first", saves quota):
  *   1. GET /urls/{id}  where id = base64url(url) without "=" padding
  *   2. 404 → POST /urls to submit, then poll GET /analyses/{analysisId}
- * File flow (Phase 3): GET /files/{sha256} → 404 → POST /files (multipart)
+ * File flow: GET /files/{sha256} → 404 → POST /files (multipart)
  *
  * Every function returns { available, status, stats, engines[] } and never throws.
  * status: 'completed' | 'queued' | 'rate_limited' | 'not_configured' | 'error'
@@ -117,7 +117,7 @@ export async function scanUrlWithVirusTotal(url, { quick = false } = {}) {
   }
 }
 
-/** Phase 3: file lookup by SHA-256. */
+/** File lookup by SHA-256. */
 export async function lookupFileHash(sha256) {
   if (!hasKey('VIRUSTOTAL_API_KEY')) return { available: false, status: 'not_configured', reason: 'not_configured' };
   try {
@@ -138,7 +138,7 @@ export async function lookupFileHash(sha256) {
   }
 }
 
-/** Phase 3: upload an unknown file buffer (≤ 32 MB) then poll. */
+/** Upload an unknown file buffer (≤ 32 MB) then poll. */
 export async function uploadFileToVirusTotal(buffer, filename) {
   if (!hasKey('VIRUSTOTAL_API_KEY')) return { available: false, status: 'not_configured', reason: 'not_configured' };
   try {

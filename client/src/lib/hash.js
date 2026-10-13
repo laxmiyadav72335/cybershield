@@ -11,7 +11,7 @@ export async function sha256Hex(fileOrBlob) {
   return toHex(digest);
 }
 
-/** Used by the password checker (Phase 4): SHA-1, UPPERCASE hex, as HIBP expects. */
+/** Used by the password checker: SHA-1, UPPERCASE hex, as HIBP expects. */
 export async function sha1HexUpper(text) {
   const data = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest('SHA-1', data);

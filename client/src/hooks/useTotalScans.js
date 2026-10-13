@@ -2,7 +2,7 @@
  * Live "total scans" counter for the Home page.
  * Subscribes to Firestore document stats/global { totalScans } in real time.
  * Falls back to a demo value when Firebase isn't configured yet, so the
- * Home page renders during Phase 1 without any keys.
+ * Home page renders without any keys.
  */
 import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';

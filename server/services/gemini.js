@@ -1,7 +1,7 @@
 /**
  * Gemini (Google GenAI SDK) helpers.
  *  - explainFindings(): 2–3 plain-language sentences for the Result page
- *  - analyzeMessage():  strict-JSON scam analysis (Phase 3)
+ *  - analyzeMessage():  strict-JSON scam analysis
  * Model name comes from GEMINI_MODEL so it can be swapped without code changes.
  */
 import { GoogleGenAI } from '@google/genai';
@@ -23,7 +23,6 @@ const OUTAGE_COOLDOWN_MS = 30 * 1000; // after a 503/504/timeout, don't retry th
 const candidates = (preferredModel) =>
   [...new Set([preferredModel, process.env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS].filter(Boolean))]
     .filter((m) => (disabledUntil.get(m) || 0) < Date.now());
-export const model = () => candidates()[0] || DEFAULT_MODEL;
 
 /**
  * API keys: GEMINI_API_KEY may hold several keys separated by commas. The free
@@ -154,7 +153,7 @@ Analyse the user's message and respond with STRICT JSON ONLY — no markdown, no
 {"verdict":"safe|suspicious|scam","riskScore":0-100,"scamType":"string (or 'none')","redFlags":[{"phrase":"exact phrase copied from the message","reason":"why it is a red flag"}],"explanation":"2-3 plain sentences","advice":"1-2 sentences of what the user should do"}
 Rules: phrases in redFlags must be copied verbatim from the message. riskScore reflects how likely this is a scam.`;
 
-/** Phase 3: strict-JSON scam analysis of a message. */
+/** Strict-JSON scam analysis of a message. */
 export async function analyzeMessage(text) {
   if (!hasKey('GEMINI_API_KEY')) return { available: false, reason: 'not_configured' };
   try {
