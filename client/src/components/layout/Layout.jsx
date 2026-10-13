@@ -1,14 +1,15 @@
+import { Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import ParticleNetwork from '../background/ParticleNetwork';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import ScrollToTop from './ScrollToTop';
 import ErrorBoundary from '../ui/ErrorBoundary';
+import PageLoader from '../ui/PageLoader';
 
 /**
- * App shell: background → navbar → animated page outlet → footer.
- * Pages fade/slide in on route change.
+ * Keep route content visible immediately. Waiting for an exiting page's
+ * animation can strand a lazy-loaded or redirected route at opacity zero.
  */
 export default function Layout() {
   const location = useLocation();
@@ -30,20 +31,13 @@ export default function Layout() {
       <ScrollToTop />
       <Navbar />
       <main id="main" tabIndex={-1} className="flex-1 px-4 sm:px-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="mx-auto w-full max-w-7xl"
-          >
-            <ErrorBoundary>
+        <div className="mx-auto w-full max-w-7xl">
+          <ErrorBoundary key={location.pathname}>
+            <Suspense fallback={<PageLoader />}>
               <Outlet />
-            </ErrorBoundary>
-          </motion.div>
-        </AnimatePresence>
+            </Suspense>
+          </ErrorBoundary>
+        </div>
       </main>
       <Footer />
     </div>
