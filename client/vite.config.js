@@ -7,6 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 // (server/ on port 5001; 5000 is used by macOS AirPlay) without CORS issues during local development.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  base: process.env.VITE_GITHUB_PAGES === 'true' ? '/cybershield/' : '/',
   server: {
     port: 5173,
     proxy: {

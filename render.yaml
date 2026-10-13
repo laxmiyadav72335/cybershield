@@ -12,7 +12,7 @@ services:
       - key: NODE_VERSION
         value: 20
       - key: CLIENT_ORIGIN
-        sync: false # Set to the exact Vercel origin during Blueprint creation
+        sync: false # Set to https://laxmiyadav72335.github.io during Blueprint creation
       - key: GEMINI_MODEL
         value: gemini-3.5-flash
       - key: VIRUSTOTAL_API_KEY

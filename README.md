@@ -298,21 +298,21 @@ Every report has the same shape:
 
 ---
 
-## Deploy to Vercel + Render
+## Deploy to GitHub Pages + Render
 
 **API on Render**
 
 1. Push the repo to GitHub. In Render choose *New → Blueprint* and select the repo
    (`render.yaml` sets root dir `server`, build `npm install`, start `npm start`, health
    check `/api/health`).
-2. Fill the secret env vars in the Render dashboard and set `CLIENT_ORIGIN` to your Vercel URL.
+2. Fill the secret env vars in the Render dashboard and set `CLIENT_ORIGIN=https://laxmiyadav72335.github.io` (the origin has no `/cybershield/` path).
 3. Note the service URL, e.g. `https://cybershield-api.onrender.com`.
 
-**Client on Vercel**
+**Client on GitHub Pages**
 
-1. *New Project* → import the repo → **Root Directory: `client`** (framework: Vite).
-2. Environment variables: all `VITE_FIREBASE_*` plus `VITE_API_BASE_URL=https://cybershield-api.onrender.com`.
-3. Deploy. `client/vercel.json` rewrites all routes to `index.html` (SPA) and adds security headers.
+1. In the `laxmiyadav72335/cybershield` repository, choose **Settings → Pages → Build and deployment → GitHub Actions**.
+2. In **Settings → Secrets and variables → Actions → Variables**, set `VITE_API_BASE_URL` to the HTTPS Render service URL. Set the six `VITE_FIREBASE_*` values there too if you want the live scan counter.
+3. Push `main`. `.github/workflows/pages.yml` tests and builds the client, then publishes it at `https://laxmiyadav72335.github.io/cybershield/`. Pages uses hash routes such as `/#/scan/url` so scanner links survive reloads.
 
 Free Render instances sleep after inactivity; the first request may take ~30 s.
 

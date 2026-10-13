@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import PageLoader from './components/ui/PageLoader';
 import Home from './pages/Home';
@@ -19,8 +19,10 @@ const NotFound = lazy(() => import('./pages/NotFound'));
  *  /awareness        Scam awareness + quiz
  */
 export default function App() {
+  // GitHub Pages cannot serve nested SPA routes directly; hash routes survive refreshes.
+  const Router = import.meta.env.VITE_GITHUB_PAGES === 'true' ? HashRouter : BrowserRouter;
   return (
-    <BrowserRouter>
+    <Router>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route element={<Layout />}>
@@ -33,6 +35,6 @@ export default function App() {
           </Route>
         </Routes>
       </Suspense>
-    </BrowserRouter>
+    </Router>
   );
 }
