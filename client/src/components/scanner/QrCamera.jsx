@@ -17,6 +17,7 @@ export default function QrCamera({ onDecode, onError }) {
     let stream;
     let timer;
     let done = false;
+    let cancelled = false;
 
     const stop = () => {
       clearInterval(timer);
@@ -44,25 +45,31 @@ export default function QrCamera({ onDecode, onError }) {
 
     (async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
+        if (cancelled) return;
         setStatus('unsupported');
         onError?.('Camera is not supported in this browser. Upload a photo of the QR code instead.');
         return;
       }
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+        if (cancelled) { stop(); return; }
         const video = videoRef.current;
+        if (!video) { stop(); return; }
         video.srcObject = stream;
         await video.play();
+        if (cancelled) { stop(); return; }
         setStatus('scanning');
         timer = setInterval(tick, 120);
       } catch (err) {
+        stop();
+        if (cancelled) return;
         const denied = err.name === 'NotAllowedError' || err.name === 'SecurityError';
         setStatus(denied ? 'denied' : 'error');
         onError?.(denied ? 'Camera permission was denied. Allow camera access or upload an image instead.' : 'Could not start the camera. Upload an image instead.');
       }
     })();
 
-    return stop;
+    return () => { cancelled = true; stop(); };
   }, [onDecode, onError]);
 
   return (

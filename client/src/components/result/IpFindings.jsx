@@ -8,7 +8,7 @@ export default function IpFindings({ result }) {
   const score = ab.abuseConfidenceScore || 0;
   const abStatus = !ab.available ? 'unavailable' : score >= 50 ? 'danger' : score > 0 ? 'warn' : 'ok';
   const abLabel = !ab.available
-    ? ab.reason === 'private' ? 'Private IP' : ab.reason === 'not_configured' ? 'Not configured' : 'Unavailable'
+    ? ab.reason === 'private' ? 'Non-public IP' : ab.reason === 'not_configured' ? 'Not configured' : 'Unavailable'
     : `${score}% abuse confidence`;
 
   const country = ab.countryName || geo.country;
@@ -43,13 +43,13 @@ export default function IpFindings({ result }) {
         ) : (
           <p className="text-xs text-slate-500">
             {ab.reason === 'private'
-              ? 'Private addresses (10.x, 192.168.x, 127.x…) exist only inside your own network.'
+              ? 'Local or reserved addresses do not have a public AbuseIPDB reputation.'
               : 'Abuse reports could not be fetched for this address.'}
           </p>
         )}
       </SourceCard>
 
-      <SourceCard title="Location & network" status={geo.available ? (geo.isProxy || geo.isHosting ? 'warn' : 'ok') : 'unavailable'} statusLabel={geo.available ? (geo.isProxy ? 'Proxy / VPN' : geo.isHosting ? 'Hosting' : 'Residential / ISP') : abLabel === 'Private IP' ? 'Private IP' : 'Unavailable'} delay={0.2}>
+      <SourceCard title="Location & network" status={geo.available ? (geo.isProxy || geo.isHosting ? 'warn' : 'ok') : 'unavailable'} statusLabel={geo.available ? (geo.isProxy ? 'Proxy / VPN' : geo.isHosting ? 'Hosting' : 'Residential / ISP') : abLabel === 'Non-public IP' ? 'Non-public IP' : 'Unavailable'} delay={0.2}>
         {geo.available ? (
           <>
             <Row k="Country" v={`${flag} ${country}`} />

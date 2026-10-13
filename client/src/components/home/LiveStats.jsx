@@ -21,12 +21,12 @@ export default function LiveStats() {
   ];
 
   return (
-    <dl className="grid max-w-xl grid-cols-3 gap-3">
-      {stats.map((s) => (
-        <div key={s.label} className="glass rounded-xl px-3 py-3 sm:px-4">
+    <dl className="grid max-w-xl grid-cols-2 gap-3 sm:grid-cols-3">
+      {stats.map((s, i) => (
+        <div key={s.label} className={`glass rounded-xl px-3 py-3 sm:px-4 ${i === 2 ? 'col-span-2 sm:col-span-1' : ''}`}>
           <dt className="text-[11px] uppercase tracking-wider text-slate-400">{s.label}</dt>
           <dd className="mt-1 font-display text-xl font-bold text-white sm:text-2xl">{s.value}</dd>
-          <dd className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-slate-500">
+          <dd className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500">
             {s.live && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-safe" />}
             {s.note}
           </dd>

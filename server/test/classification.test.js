@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { analyzeMessageHeuristics } from '../utils/messageHeuristics.js';
 import { normalizeUrl, analyzeUrlHeuristics } from '../utils/urlUtils.js';
-import { isNonPublicIp } from '../services/ipScanner.js';
+import { ipReputationSummary, isNonPublicIp, scanIp } from '../services/ipScanner.js';
 import { scoreMessage } from '../utils/threatScore.js';
 
 test('protective OTP advice is not treated as a request for the code', () => {
@@ -21,6 +21,17 @@ test('non-public IPv6 ranges are excluded from reputation lookups', () => {
     assert.equal(isNonPublicIp(ip), true, `${ip} should be non-public`);
   }
   assert.equal(isNonPublicIp('2606:4700:4700::1111'), false);
+});
+
+test('non-public IPs have no safe verdict or threat score', async () => {
+  const report = await scanIp('fe90::1');
+  assert.equal(report.verdict, 'unknown');
+  assert.equal(report.threatScore, null);
+  assert.equal(report.aiAvailable, false);
+});
+
+test('zero abuse confidence does not erase reported abuse', () => {
+  assert.match(ipReputationSummary({ available: true, abuseConfidenceScore: 0, totalReports: 235, numDistinctUsers: 92, isWhitelisted: true }), /235 abuse reports.*0% confidence/);
 });
 
 test('strong local scam evidence raises a low AI risk score', () => {

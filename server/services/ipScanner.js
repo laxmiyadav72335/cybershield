@@ -20,6 +20,13 @@ export function isNonPublicIp(ip, version = isIP(ip)) {
   return false;
 }
 
+export function ipReputationSummary(abuseIpdb) {
+  if (!abuseIpdb.available) return 'AbuseIPDB reputation could not be checked for this address.';
+  const reports = abuseIpdb.totalReports || 0;
+  if (reports === 0) return `No abuse reports in the last 90 days${abuseIpdb.isWhitelisted ? ' (whitelisted)' : ''}.`;
+  return `${reports} abuse report${reports === 1 ? '' : 's'} from ${abuseIpdb.numDistinctUsers} users — ${abuseIpdb.abuseConfidenceScore}% confidence of abuse${abuseIpdb.isWhitelisted ? ' (whitelisted)' : ''}.`;
+}
+
 export async function scanIp(rawIp) {
   let ip = String(rawIp || '').trim().replace(/^\[|\]$/g, '');
   // IPv4-mapped IPv6 (::ffff:1.2.3.4) is really an IPv4 address — look up the v4 form
@@ -33,9 +40,34 @@ export async function scanIp(rawIp) {
   const cached = cacheGet(cacheKey);
   if (cached) return { ...cached, cached: true };
 
-  const [abuseIpdb, geo] = isPrivate
-    ? [{ available: false, reason: 'private' }, { available: false, reason: 'private' }]
-    : await Promise.all([checkAbuseIpdb(ip), geoLookup(ip)]);
+  if (isPrivate) {
+    const report = {
+      scanType: 'ip', input: ip, inputPreview: ip, ipVersion: version, isPrivate,
+      threatScore: null, verdict: 'unknown',
+      summary: 'This is a local or reserved address. Public reputation and geolocation checks do not apply.',
+      explanation: 'This address was not checked by AbuseIPDB or geolocation services. No threat score is available; an unscored address should not be treated as safe.',
+      aiAvailable: false, breakdown: [],
+      sources: { abuseIpdb: { available: false, reason: 'private' }, geo: { available: false, reason: 'private' } },
+      unavailableSources: [], scannedAt: new Date().toISOString(), cached: false,
+    };
+    cacheSet(cacheKey, report);
+    return report;
+  }
+
+  const [abuseIpdb, geo] = await Promise.all([checkAbuseIpdb(ip), geoLookup(ip)]);
+
+  if (!abuseIpdb.available) {
+    const report = {
+      scanType: 'ip', input: ip, inputPreview: ip, ipVersion: version, isPrivate,
+      threatScore: null, verdict: 'unknown',
+      summary: ipReputationSummary(abuseIpdb),
+      explanation: 'The reputation service did not return a result. No threat score is available; an unscored address should not be treated as safe.',
+      aiAvailable: false, breakdown: [], sources: { abuseIpdb, geo },
+      unavailableSources: ['AbuseIPDB', ...(!geo.available ? ['Geolocation'] : [])],
+      scannedAt: new Date().toISOString(), cached: false,
+    };
+    return report;
+  }
 
   const { score, verdict, breakdown } = scoreIp({ abuseIpdb });
 
@@ -45,7 +77,7 @@ export async function scanIp(rawIp) {
     verdict,
     score,
     breakdown,
-    unavailable: [...(!abuseIpdb.available && !isPrivate ? ['AbuseIPDB'] : [])],
+    unavailable: [...(!abuseIpdb.available ? ['AbuseIPDB'] : [])],
     extra: {
       Country: abuseIpdb.countryName || geo.country || 'unknown',
       ISP: abuseIpdb.isp || geo.isp || 'unknown',
@@ -53,14 +85,6 @@ export async function scanIp(rawIp) {
       'Reports (90 days)': abuseIpdb.available ? abuseIpdb.totalReports : 'unknown',
     },
   });
-
-  const summary = isPrivate
-    ? 'This is a private, local or reserved address — it is not routable on the public internet and cannot be looked up.'
-    : !abuseIpdb.available
-      ? 'AbuseIPDB reputation could not be checked for this address.'
-      : abuseIpdb.abuseConfidenceScore === 0
-        ? `No abuse reports in the last 90 days${abuseIpdb.isWhitelisted ? ' (whitelisted)' : ''}.`
-        : `${abuseIpdb.totalReports} abuse report${abuseIpdb.totalReports === 1 ? '' : 's'} from ${abuseIpdb.numDistinctUsers} users — ${abuseIpdb.abuseConfidenceScore}% confidence of abuse.`;
 
   const report = {
     scanType: 'ip',
@@ -70,12 +94,12 @@ export async function scanIp(rawIp) {
     isPrivate,
     threatScore: score,
     verdict,
-    summary,
+    summary: ipReputationSummary(abuseIpdb),
     explanation: ai.text,
     aiAvailable: ai.available,
     breakdown,
     sources: { abuseIpdb, geo },
-    unavailableSources: [...(!abuseIpdb.available && !isPrivate ? ['AbuseIPDB'] : []), ...(!geo.available && !isPrivate ? ['Geolocation'] : [])],
+    unavailableSources: [...(!abuseIpdb.available ? ['AbuseIPDB'] : []), ...(!geo.available ? ['Geolocation'] : [])],
     scannedAt: new Date().toISOString(),
     cached: false,
   };

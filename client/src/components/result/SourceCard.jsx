@@ -38,8 +38,8 @@ export default function SourceCard({ title, status = 'ok', statusLabel, children
 export function Row({ k, v, mono = false }) {
   return (
     <div className="flex items-start justify-between gap-4 border-t border-white/5 py-1.5 text-xs first:border-t-0">
-      <span className="text-slate-500">{k}</span>
-      <span className={`text-right text-slate-200 ${mono ? 'font-mono' : ''}`}>{v ?? '—'}</span>
+      <span className="min-w-0 text-slate-500">{k}</span>
+      <span className={`min-w-0 max-w-[65%] text-right text-slate-200 [overflow-wrap:anywhere] ${mono ? 'font-mono' : ''}`}>{v ?? '—'}</span>
     </div>
   );
 }

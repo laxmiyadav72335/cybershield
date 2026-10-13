@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { loadLastResult, saveLastResult } from '../lib/resultStore';
@@ -30,7 +30,6 @@ export default function Result() {
   const location = useLocation();
   const reduce = useReducedMotion();
   const [result, setResult] = useState(() => location.state?.result || loadLastResult());
-  const [shake, setShake] = useState(false);
   const [rechecking, setRechecking] = useState(false);
   const [recheckError, setRecheckError] = useState('');
 
@@ -63,14 +62,6 @@ export default function Result() {
   };
 
   const dangerous = result?.verdict === 'dangerous';
-  useEffect(() => {
-    if (dangerous && !reduce) {
-      setShake(true);
-      const t = setTimeout(() => setShake(false), 600);
-      return () => clearTimeout(t);
-    }
-    return undefined;
-  }, [dangerous, reduce]);
 
   if (!result) return <EmptyState />;
 
@@ -80,8 +71,8 @@ export default function Result() {
   const scannedAt = new Date(result.scannedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 
   return (
-    <div className={`py-10 ${shake ? 'animate-shake' : ''}`}>
-      <DangerAlert active={dangerous} />
+    <div className={`py-10 ${dangerous && !reduce ? 'animate-shake' : ''}`}>
+      {dangerous && <DangerAlert />}
 
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -90,7 +81,7 @@ export default function Result() {
             <Icon name={scanner?.icon || 'scan'} className="h-4 w-4" />
             {scanner?.title || 'Scan'} result
           </p>
-          <h1 className="mt-2 break-all font-mono text-lg text-white sm:text-xl" title={result.input}>
+          <h1 className="mt-2 break-words font-mono text-lg text-white sm:text-xl" title={result.input}>
             {result.inputPreview || result.input}
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
@@ -98,12 +89,12 @@ export default function Result() {
             {result.cached && <span>· served from cache</span>}
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <Button to={`/scan/${result.scanType}`} variant="secondary" size="sm">
+        <div className="flex w-full flex-col gap-2 min-[360px]:flex-row sm:w-auto sm:shrink-0">
+          <Button to={`/scan/${result.scanType}`} variant="secondary" size="sm" className="w-full min-[360px]:w-auto">
             <Icon name="scan" className="h-4 w-4" />
             Scan another
           </Button>
-          <Button size="sm" onClick={() => downloadPdf(result)}>
+          <Button size="sm" onClick={() => downloadPdf(result)} className="w-full min-[360px]:w-auto">
             <Icon name="file" className="h-4 w-4" />
             Download PDF
           </Button>
@@ -120,7 +111,7 @@ export default function Result() {
           <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0 text-suspicious" />
           <p className="text-slate-200">
             <span className="font-semibold text-suspicious">Partial result.</span> {unavailable.join(', ')} could not be
-            checked, so the score may be lower than the real risk.
+            checked, {result.threatScore == null ? 'so no threat score is available.' : 'so the score may be lower than the real risk.'}
           </p>
         </motion.div>
       )}
@@ -148,7 +139,12 @@ export default function Result() {
       {/* Verdict block */}
       <GlassCard glow={!dangerous} className={`mb-6 overflow-hidden p-6 sm:p-8 ${dangerous ? 'ring-1 ring-danger/50' : ''}`}>
         <div className="grid items-center gap-8 lg:grid-cols-[320px_1fr]">
-          <ThreatGauge score={result.threatScore} />
+          {result.threatScore == null ? (
+            <div role="img" aria-label="No threat score available" className="mx-auto flex h-48 w-48 flex-col items-center justify-center rounded-full border border-slate-400/30 bg-slate-500/10 text-center">
+              <span className="font-display text-2xl font-bold text-slate-200">Not scored</span>
+              <span className="mt-2 text-xs text-slate-400">{result.scanType === 'file' ? (vtQueued ? 'Analysis pending' : 'Detection data unavailable') : result.isPrivate ? 'No public reputation check' : 'Reputation check unavailable'}</span>
+            </div>
+          ) : <ThreatGauge score={result.threatScore} />}
           <div>
             <VerdictBadge verdict={result.verdict} />
             <motion.p
@@ -170,7 +166,7 @@ export default function Result() {
                 {result.aiAvailable ? 'AI explanation' : 'Explanation'}
               </p>
               <p className="text-sm leading-relaxed text-slate-200">{result.explanation}</p>
-              {!result.aiAvailable && !result.local && (
+              {!result.aiAvailable && !result.local && result.verdict !== 'unknown' && (
                 <p className="mt-2 text-[11px] text-slate-500">This is a rule-based summary of the available findings.</p>
               )}
             </motion.div>
@@ -184,7 +180,7 @@ export default function Result() {
         </div>
         <aside className="space-y-6">
           <GlassCard className="p-5">
-            <ScoreBreakdown breakdown={result.breakdown} score={result.threatScore} />
+            <ScoreBreakdown breakdown={result.breakdown} score={result.threatScore} reason={result.scanType === 'file' ? (vtQueued ? 'VirusTotal is still analysing this file.' : 'VirusTotal detection data was unavailable.') : result.isPrivate ? 'Public reputation was not checked for this local or reserved address.' : 'The reputation service was unavailable, so this address could not be scored.'} />
           </GlassCard>
           <GlassCard className="p-5">
             <h3 className="text-sm font-semibold text-white">What should I do?</h3>
@@ -211,6 +207,12 @@ export default function Result() {
 
 /** Module-specific advice where it exists (password, UPI QR); otherwise the generic verdict advice. */
 function adviceFor(result) {
+  if (result.scanType === 'file' && result.verdict === 'unknown') return result.sources?.virusTotal?.status === 'queued'
+    ? ['Use Check again after VirusTotal finishes analysing the file.', 'Do not treat a pending analysis as a clean result.']
+    : ['Try scanning the file again later.', 'Do not treat unavailable detection data as a clean result.'];
+  if (result.verdict === 'unknown') return result.isPrivate
+    ? ['Use a public IP address to run a reputation check.', 'Do not interpret an unscored address as safe.']
+    : ['Try the reputation check again later.', 'Do not interpret an unscored address as safe.'];
   const key = result.scanType === 'qr' ? (result.qr?.kind === 'upi' ? 'qr' : null) : result.scanType;
   return ADVICE[key]?.[result.verdict] || ADVICE[result.verdict] || ADVICE.safe;
 }

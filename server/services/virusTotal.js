@@ -43,19 +43,21 @@ function toEngineList(results = {}) {
     });
 }
 
-function fromAttributes(attrs, extra = {}) {
-  const stats = attrs.last_analysis_stats || attrs.stats || {};
+export function fromAttributes(attrs, extra = {}) {
+  const rawStats = attrs.last_analysis_stats || attrs.stats;
+  const hasStats = rawStats && Object.keys(rawStats).length > 0;
+  const stats = hasStats ? rawStats : {};
   const results = attrs.last_analysis_results || attrs.results || {};
   return {
     available: true,
-    status: 'completed',
-    stats: {
+    status: hasStats ? 'completed' : 'queued',
+    stats: hasStats ? {
       malicious: stats.malicious || 0,
       suspicious: stats.suspicious || 0,
       harmless: stats.harmless || 0,
       undetected: stats.undetected || 0,
       timeout: stats.timeout || 0,
-    },
+    } : null,
     engines: toEngineList(results),
     ...extra,
   };
@@ -93,7 +95,9 @@ export async function scanUrlWithVirusTotal(url, { quick = false } = {}) {
   try {
     const { data } = await vt.get(`/urls/${id}`);
     const attrs = data.data.attributes;
-    return fromAttributes(attrs, { permalink, lastAnalysisDate: attrs.last_analysis_date ? new Date(attrs.last_analysis_date * 1000).toISOString() : null });
+    const known = fromAttributes(attrs, { permalink, lastAnalysisDate: attrs.last_analysis_date ? new Date(attrs.last_analysis_date * 1000).toISOString() : null });
+    // A URL object with no analysis stats has never been analysed — fall through and submit it
+    if (known.stats) return known;
   } catch (err) {
     if (err.response?.status !== 404) return handleError(err, 'get-url');
   }

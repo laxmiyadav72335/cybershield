@@ -81,6 +81,8 @@ export const VERDICTS = {
   safe: { label: 'Safe', color: '#22C55E', text: 'text-safe', bg: 'bg-safe/15', ring: 'ring-safe/40' },
   suspicious: { label: 'Suspicious', color: '#F59E0B', text: 'text-suspicious', bg: 'bg-suspicious/15', ring: 'ring-suspicious/40' },
   dangerous: { label: 'Dangerous', color: '#EF4444', text: 'text-danger', bg: 'bg-danger/15', ring: 'ring-danger/40' },
+  // Shown when no score could be computed (e.g. VirusTotal still analysing, non-public IP)
+  unknown: { label: 'Not scored', color: '#94A3B8', text: 'text-slate-300', bg: 'bg-slate-500/15', ring: 'ring-slate-400/40' },
 };
 
 /** Score → verdict mapping (mirrors server/utils/threatScore.js). */

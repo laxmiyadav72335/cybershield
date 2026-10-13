@@ -63,7 +63,7 @@ export default function Awareness() {
 
       {/* Quiz */}
       <section aria-labelledby="quiz-heading">
-        <div className="mb-4 flex items-end justify-between">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <h2 id="quiz-heading" className="font-display text-xl font-bold">Test yourself: 10-question quiz</h2>
           <span className="text-xs text-slate-500">Instant feedback after each answer</span>
         </div>

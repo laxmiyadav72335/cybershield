@@ -57,7 +57,7 @@ function findingsRows(r) {
 export function buildPdf(result) {
   const docPdf = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = docPdf.internal.pageSize.getWidth();
-  const v = VERDICTS[result.verdict] || VERDICTS.safe;
+  const v = VERDICTS[result.verdict] || VERDICTS.unknown;
   const vc = hex(v.color);
   const scanner = getScanner(result.scanType);
 
@@ -81,8 +81,8 @@ export function buildPdf(result) {
   docPdf.roundedRect(W - 160, 20, 120, 50, 6, 6, 'F');
   docPdf.setTextColor(255, 255, 255);
   docPdf.setFont('helvetica', 'bold');
-  docPdf.setFontSize(22);
-  docPdf.text(`${result.threatScore}/100`, W - 100, 44, { align: 'center' });
+  docPdf.setFontSize(result.threatScore == null ? 13 : 22);
+  docPdf.text(result.threatScore == null ? 'NOT SCORED' : `${result.threatScore}/100`, W - 100, 44, { align: 'center' });
   docPdf.setFontSize(10);
   docPdf.text(v.label.toUpperCase(), W - 100, 60, { align: 'center' });
 
@@ -122,8 +122,8 @@ export function buildPdf(result) {
   autoTable(docPdf, {
     startY: y + 6,
     head: [['Why this score?', 'Points']],
-    body: result.breakdown?.length ? result.breakdown.map((b) => [b.label, `+${b.points}`]) : [['No risk signals were triggered', '0']],
-    foot: [['Total (capped at 100)', String(result.threatScore)]],
+    body: result.threatScore == null ? [[result.scanType === 'file' ? (result.sources?.virusTotal?.status === 'queued' ? 'VirusTotal analysis is pending' : 'Detection data was unavailable') : result.isPrivate ? 'Public reputation was not checked' : 'Reputation service was unavailable', '—']] : result.breakdown?.length ? result.breakdown.map((b) => [b.label, `+${b.points}`]) : [['No risk signals were triggered', '0']],
+    foot: [[result.threatScore == null ? 'Result' : 'Total (capped at 100)', result.threatScore == null ? 'Not scored' : String(result.threatScore)]],
     theme: 'grid',
     headStyles: { fillColor: NAVY, textColor: CYAN, fontStyle: 'bold' },
     footStyles: { fillColor: [241, 245, 249], textColor: TEXT, fontStyle: 'bold' },

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import QrCamera from './QrCamera';
 import { decodeImageFile } from '../../lib/qr';
@@ -28,6 +28,8 @@ export default function QrScanForm({ onDecode, disabled }) {
   const [pasted, setPasted] = useState('');
   const [preview, setPreview] = useState(null);
   const inputRef = useRef(null);
+
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   const handleCameraDecode = useCallback((text) => onDecode(text, 'camera'), [onDecode]);
   const handleCameraError = useCallback((msg) => setError(msg), []);

@@ -37,10 +37,13 @@ export default function Scanner() {
   const [subtitle, setSubtitle] = useState('');
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
+  const tabNavRef = useRef(null);
 
   // Cancel in-flight request if the user leaves the page
   useEffect(() => () => abortRef.current?.abort(), []);
-  useEffect(() => setError(null), [type]);
+  useEffect(() => {
+    tabNavRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [type]);
 
   if (!SCANNER_IDS.includes(type)) return <Navigate to="/scan/url" replace />;
   const scanner = getScanner(type);
@@ -58,7 +61,7 @@ export default function Scanner() {
       bumpGlobalCounter(); // fire-and-forget public counter
       navigate('/result', { state: { result } });
     } catch (err) {
-      if (err.name !== 'AbortError') setError(err);
+      if (err.name !== 'AbortError') setError({ type, value: err });
     } finally {
       setScanning(false);
     }
@@ -111,7 +114,7 @@ export default function Scanner() {
       <PageHeader eyebrow="Scanner" title="What do you want to check?" />
 
       {/* Tab strip */}
-      <nav className="no-scrollbar -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0" aria-label="Scanner types">
+      <nav ref={tabNavRef} className="no-scrollbar -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0" aria-label="Scanner types">
         {SCANNERS.map((s) => (
           <NavLink
             key={s.id}
@@ -158,7 +161,7 @@ export default function Scanner() {
 
           {FORMS[type]}
 
-          <ScanError error={error} onRetry={() => setError(null)} />
+          <ScanError error={error?.type === type ? error.value : null} onRetry={() => setError(null)} />
         </GlassCard>
 
         <GlassCard className="p-6">

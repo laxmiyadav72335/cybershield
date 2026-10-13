@@ -48,7 +48,12 @@ export async function scanFile({ sha256, fileName, size, mimeType, buffer }) {
   const { score, verdict, breakdown } = scoreFile({ virusTotal: vt });
   const flagged = vt.stats ? vt.stats.malicious + vt.stats.suspicious : 0;
 
-  const ai = await explainFindings({
+  const ai = score == null ? {
+    available: false,
+    text: vt.status === 'queued'
+      ? 'VirusTotal has not finished analysing this file. No malware verdict is available yet; check again when the analysis completes.'
+      : 'VirusTotal detection data could not be retrieved. No malware verdict is available; try the scan again later.',
+  } : await explainFindings({
     scanType: 'file',
     input: `${safeName} (${vt.fileType || mimeType || 'unknown type'}, ${prettyBytes(size) || 'unknown size'})`,
     verdict,
@@ -89,6 +94,6 @@ export async function scanFile({ sha256, fileName, size, mimeType, buffer }) {
     scannedAt: new Date().toISOString(),
     cached: false,
   };
-  cacheSet(cacheKey, report, vt.status === 'completed' ? undefined : 60 * 1000);
+  if (vt.available) cacheSet(cacheKey, report, vt.status === 'completed' ? undefined : 60 * 1000);
   return report;
 }

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { VERDICTS } from '../../config/scanners';
 import Icon from '../ui/Icon';
 
-const icons = { safe: 'check', suspicious: 'alert', dangerous: 'alert' };
+const icons = { unknown: 'alert', safe: 'check', suspicious: 'alert', dangerous: 'alert' };
 
 /** Big pill showing Safe / Suspicious / Dangerous. */
 export default function VerdictBadge({ verdict = 'safe', size = 'lg' }) {

@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import Button from '../ui/Button';
 import Icon from '../ui/Icon';
-
-const V4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
-const V6 = /^[0-9a-f:]+$/i;
-export const isValidIp = (s) => V4.test(s) || (s.includes(':') && s.length <= 45 && V6.test(s) && /[0-9a-f]/i.test(s));
+import { isValidIp } from '../../lib/ipValidation';
 
 const EXAMPLES = ['8.8.8.8', '1.1.1.1', '185.220.101.1', '2001:4860:4860::8888'];
 

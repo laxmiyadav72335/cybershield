@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import Icon from '../ui/Icon';
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 export default function Footer() {
   return (
     <footer className="mt-24 px-4 pb-8 sm:px-6">
@@ -11,10 +13,10 @@ export default function Footer() {
             <span className="font-display text-slate-200">CyberShield</span> · Smart Threat Detection
           </span>
         </div>
-        <div className="flex items-center gap-5">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
           <Link to="/awareness" className="hover:text-cyber-cyan">Scam Awareness</Link>
           <Link to="/scan" className="hover:text-cyber-cyan">Scanner</Link>
-          <span className="text-slate-500">B.Sc. CS Final Year Project · {new Date().getFullYear()}</span>
+          <span className="basis-full text-center text-slate-500 sm:basis-auto sm:text-right">B.Sc. CS Final Year Project · {CURRENT_YEAR}</span>
         </div>
       </div>
     </footer>

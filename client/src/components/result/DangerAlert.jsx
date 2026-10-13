@@ -6,18 +6,15 @@ import { motion, useReducedMotion } from 'framer-motion';
  * seconds, then settling to a faint vignette) and the page shakes once.
  * Shake is skipped under prefers-reduced-motion.
  */
-export default function DangerAlert({ active }) {
+export default function DangerAlert() {
   const reduce = useReducedMotion();
   const [intense, setIntense] = useState(true);
 
   useEffect(() => {
-    if (!active) return undefined;
-    setIntense(true);
     const t = setTimeout(() => setIntense(false), 3500);
     return () => clearTimeout(t);
-  }, [active]);
+  }, []);
 
-  if (!active) return null;
   return (
     <motion.div
       aria-hidden="true"

@@ -107,6 +107,9 @@ export function scoreUrl({ safeBrowsing, virusTotal, domainAge, heuristics }) {
 
 /** File score: VirusTotal detections only (Phase 3). */
 export function scoreFile({ virusTotal }) {
+  if (!virusTotal?.available || !virusTotal.stats) {
+    return { score: null, verdict: 'unknown', breakdown: [] };
+  }
   const W = WEIGHTS.file;
   const breakdown = [];
   let score = 0;

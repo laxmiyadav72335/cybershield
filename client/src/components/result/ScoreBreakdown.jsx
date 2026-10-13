@@ -2,7 +2,13 @@ import { motion } from 'framer-motion';
 import Icon from '../ui/Icon';
 
 /** "Why this score?" — the weighted signals from the threat score engine. */
-export default function ScoreBreakdown({ breakdown = [], score }) {
+export default function ScoreBreakdown({ breakdown = [], score, reason = 'No score is available.' }) {
+  if (score == null) return (
+    <div>
+      <h3 className="text-sm font-semibold text-white">Why no score?</h3>
+      <p className="mt-2 text-sm text-slate-300">{reason}</p>
+    </div>
+  );
   return (
     <div>
       <h3 className="text-sm font-semibold text-white">Why this score?</h3>

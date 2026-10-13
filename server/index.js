@@ -17,8 +17,9 @@ for (const [k, v] of Object.entries(process.env)) if (/_KEY$|_MODEL$|ORIGIN$/.te
 import cors from 'cors';
 import scanRouter from './routes/scan.js';
 import { scanLimiter } from './middleware/rateLimiter.js';
-import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { errorHandler, notFound, httpError } from './middleware/errorHandler.js';
 import { configStatus } from './utils/config.js';
+import { allowedClientOrigins } from './utils/origins.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5001;
@@ -27,17 +28,14 @@ const PORT = Number(process.env.PORT) || 5001;
 app.set('trust proxy', 1);
 
 // ─── CORS: only the configured client origin(s) may call this API ───────
-const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean);
+const allowedOrigins = allowedClientOrigins(process.env.CLIENT_ORIGIN);
 
 app.use(
   cors({
     origin(origin, cb) {
       // Allow server-to-server / curl (no Origin header) and whitelisted origins
       if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-      return cb(new Error(`CORS: origin ${origin} not allowed`));
+      return cb(httpError(403, 'forbidden_origin', 'This browser origin is not allowed.'));
     },
     methods: ['GET', 'POST'],
   }),

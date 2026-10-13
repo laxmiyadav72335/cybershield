@@ -14,8 +14,8 @@ export function useCountUp(target, duration = 1400) {
     // No animation for reduced-motion users, or when the tab is hidden
     // (requestAnimationFrame is paused there and the number would stick at 0)
     if (reduce || document.hidden) {
-      setValue(target);
-      return undefined;
+      const timer = setTimeout(() => setValue(target), 0);
+      return () => clearTimeout(timer);
     }
     let frame;
     const start = performance.now();
