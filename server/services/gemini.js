@@ -8,20 +8,21 @@ import { GoogleGenAI } from '@google/genai';
 import { hasKey } from '../utils/config.js';
 
 const DEFAULT_MODEL = 'gemini-3.5-flash';
+const DEFAULT_EXPLAIN_MODEL = 'gemini-3.5-flash-lite';
 /**
- * Models to try, in order, when the configured one fails with 404 (retired),
- * 429 (free-tier quota exhausted) or 503/504 (overloaded). The configured
- * GEMINI_MODEL always goes first. Once a model fails hard we skip it for the
- * rest of the process so every scan doesn't pay the failure again.
+ * Models to try when a request fails with 404 (retired), 429 (quota) or
+ * 503/504 (overloaded). Short explanations prefer Flash-Lite; message analysis
+ * starts with GEMINI_MODEL. Failed models are skipped until their cooldown ends.
  */
-const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+const FALLBACK_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash'];
 // model → timestamp until which it is skipped (Infinity = retired, 60 s = quota cooldown)
 const disabledUntil = new Map();
 const quotaRotated = new Set(); // models we already rotated keys for in this cooldown window
 const QUOTA_COOLDOWN_MS = 60 * 1000;
 const OUTAGE_COOLDOWN_MS = 30 * 1000; // after a 503/504/timeout, don't retry that model for 30 s
-const candidates = () =>
-  [...new Set([process.env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS])].filter((m) => (disabledUntil.get(m) || 0) < Date.now());
+const candidates = (preferredModel) =>
+  [...new Set([preferredModel, process.env.GEMINI_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS].filter(Boolean))]
+    .filter((m) => (disabledUntil.get(m) || 0) < Date.now());
 export const model = () => candidates()[0] || DEFAULT_MODEL;
 
 /**
@@ -49,15 +50,20 @@ const rotateKey = () => {
 };
 
 /** Hard cap for a whole Gemini step (all fallback models included). Resolves to null on timeout. */
-const withCap = (promise, ms) =>
-  Promise.race([promise.catch(() => null), new Promise((r) => setTimeout(() => r(null), ms))]);
+const withCap = (promise, ms) => new Promise((resolve) => {
+  const timer = setTimeout(() => resolve(null), ms);
+  promise.then(
+    (value) => { clearTimeout(timer); resolve(value); },
+    () => { clearTimeout(timer); resolve(null); },
+  );
+});
 
 const EXPLAIN_CAP_MS = 8000;   // nice-to-have text: never make the user wait longer than this
 const ANALYZE_CAP_MS = 20000;  // message classification is the main result, allow a bit more
 
-async function generate(params) {
+async function generate(params, preferredModel) {
   let lastErr;
-  for (const m of candidates()) {
+  for (const m of candidates(preferredModel)) {
     // "lite" models reject thinkingConfig — strip it for them
     const config = /lite/.test(m) && params.config?.thinkingConfig ? { ...params.config, thinkingConfig: undefined } : params.config;
     try {
@@ -70,13 +76,19 @@ async function generate(params) {
         disabledUntil.set(m, Infinity);
         continue;
       }
+      if (/\b400\b|INVALID_ARGUMENT/i.test(msg)) {
+        // This model rejects our request shape (e.g. an unsupported config field) — skip it for good
+        console.warn(`[gemini] model ${m} rejected the request (400) — trying next model`);
+        disabledUntil.set(m, Infinity);
+        continue;
+      }
       if (/429|RESOURCE_EXHAUSTED|quota/i.test(msg)) {
         // Quota is per key+model. Try the same model on the next key first (if any),
         // otherwise rest this model for a minute and move on.
         if (!quotaRotated.has(m) && rotateKey()) {
           quotaRotated.add(m);
           setTimeout(() => quotaRotated.delete(m), QUOTA_COOLDOWN_MS).unref?.();
-          return generate(params);
+          return generate(params, preferredModel);
         }
         console.warn(`[gemini] model ${m} quota exceeded — cooling down 60 s, trying next model`);
         disabledUntil.set(m, Date.now() + QUOTA_COOLDOWN_MS);
@@ -125,7 +137,7 @@ what was found and what they should do. Be calm and specific.`;
         // headroom and turn thinking off for this short, simple task.
         maxOutputTokens: 1024,
         thinkingConfig: { thinkingBudget: 0 },
-      } }), EXPLAIN_CAP_MS);
+      } }, process.env.GEMINI_EXPLAIN_MODEL || DEFAULT_EXPLAIN_MODEL), EXPLAIN_CAP_MS);
     if (!res) return { available: false, text: fallbackExplanation(ctx) };
     const text = (res.text || '').trim();
     return text ? { available: true, text } : { available: false, text: fallbackExplanation(ctx) };
