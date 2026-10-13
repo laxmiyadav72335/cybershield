@@ -139,13 +139,18 @@ export function scoreIp({ abuseIpdb }) {
 }
 
 /** Message score: Gemini riskScore + half of the worst embedded link score (Phase 3). */
-export function scoreMessage({ ai, linkScans = [] }) {
+export function scoreMessage({ ai, rules, linkScans = [] }) {
   const W = WEIGHTS.message;
   const breakdown = [];
   let score = 0;
   if (ai?.available) {
     score = ai.riskScore || 0;
-    breakdown.push({ label: `AI risk assessment (${ai.scamType || 'analysis'})`, points: Math.round(score) });
+    breakdown.push({ label: `${ai.source === 'rules' ? 'Rule-based' : 'AI'} risk assessment (${ai.scamType || 'analysis'})`, points: Math.round(score) });
+  }
+  if (rules?.available && rules !== ai && rules.riskScore > score) {
+    const added = rules.riskScore - score;
+    score = rules.riskScore;
+    breakdown.push({ label: `Local scam patterns (${rules.scamType || 'analysis'})`, points: Math.round(added) });
   }
   const worstLink = Math.max(0, ...linkScans.map((l) => l.threatScore || 0));
   if (worstLink > 0) {

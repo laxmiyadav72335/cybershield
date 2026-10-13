@@ -4,7 +4,7 @@ Check whether a **link, file, SMS/email message, QR code, IP address or password
 dangerous. CyberShield queries real security APIs (Google Safe Browsing, VirusTotal,
 AbuseIPDB, RDAP, Have I Been Pwned) and Gemini AI, then returns a **0–100 threat score**,
 a verdict (**Safe / Suspicious / Dangerous**) and a plain-language explanation.
-No account needed — nothing personal is stored.
+No account needed. The latest report is kept in this browser tab's session storage so it survives a refresh.
 
 > Final-year B.Sc. Computer Science project. Stack: React + Vite + Tailwind + Framer Motion
 > on the front end, Node + Express on the back end, Firestore for the public scan counter.
@@ -282,11 +282,11 @@ Every report has the same shape:
   through the Express API; CORS is restricted to `CLIENT_ORIGIN`.
 - **Files**: SHA-256 is computed in the browser (Web Crypto). The API first asks VirusTotal
   about the hash; bytes are uploaded only if the file is unknown, held in a multer memory
-  buffer and dropped after the request. Nothing touches disk and only name + hash are stored.
+  buffer and dropped after the request. The API does not write file bytes to disk; unknown files are sent to VirusTotal for analysis.
 - **Passwords**: never leave the browser. SHA-1 locally, only the first 5 hex characters go to
   `api.pwnedpasswords.com/range/{prefix}` with `Add-Padding: true`; the suffix comparison
   happens locally. The form clears on submit and the saved report holds a masked preview only.
-- **Messages**: the full text goes to Gemini for analysis and is never stored anywhere.
+- **Messages**: the full text goes to Gemini for analysis when configured. The API does not persist it; the latest report, including the message, remains in the browser tab's session storage until the tab session ends.
 - **QR codes**: decoded entirely in the browser; only a decoded URL is sent to the API.
 - **Input validation**: URL normalisation, IP validation with `net.isIP`, message length cap,
   32 MB upload cap, JSON body limit 64 kB, SHA-256 format check.

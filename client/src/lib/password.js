@@ -119,11 +119,13 @@ export async function buildPasswordReport(password, signal) {
       : `Not found in any known breach. Strength: ${strength.label.toLowerCase()}.`;
 
   const explanation =
-    hibp.breachCount > 0
-      ? `Attackers use lists of leaked passwords in automatic "credential stuffing" attacks, and this one is on those lists ${hibp.breachCount.toLocaleString('en-IN')} times. Even if it feels unique to you, it is already known. Change it everywhere you use it, starting with email and banking.`
-      : strength.score <= 1
-        ? `No breach contains this exact password, but it is ${strength.label.toLowerCase()} and a computer could guess it ${strength.crackTime === 'instantly' ? 'instantly' : `in about ${strength.crackTime}`}. ${strength.suggestions[0] || ''}`
-        : `Good news: this password is not in any known breach and would take roughly ${strength.crackTime} to crack offline. Use a unique password for every important account and turn on two-factor authentication.`;
+    !hibp.available
+      ? `The breach database could not be reached, so this password's exposure is unknown. Its local strength is ${strength.label.toLowerCase()}${strength.score <= 1 ? ` and it may be guessed ${strength.crackTime === 'instantly' ? 'instantly' : `in about ${strength.crackTime}`}` : ''}. Try the breach check again when the service is available, and use a unique password for every important account.`
+      : hibp.breachCount > 0
+        ? `Attackers use lists of leaked passwords in automatic "credential stuffing" attacks, and this one is on those lists ${hibp.breachCount.toLocaleString('en-IN')} times. Even if it feels unique to you, it is already known. Change it everywhere you use it, starting with email and banking.`
+        : strength.score <= 1
+          ? `No breach contains this exact password, but it is ${strength.label.toLowerCase()} and a computer could guess it ${strength.crackTime === 'instantly' ? 'instantly' : `in about ${strength.crackTime}`}. ${strength.suggestions[0] || ''}`
+          : `Good news: this password is not in any known breach and would take roughly ${strength.crackTime} to crack offline. Use a unique password for every important account and turn on two-factor authentication.`;
 
   return {
     scanType: 'password',

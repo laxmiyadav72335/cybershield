@@ -40,6 +40,14 @@ export function analyzeMessageHeuristics(text) {
   for (const p of PATTERNS) {
     const m = text.match(p.re);
     if (!m) continue;
+    // A short negation between the start of the clause and "share OTP" is a
+    // safety warning, not a request for the recipient's code.
+    if (p.type === 'OTP scam') {
+      const before = text.slice(Math.max(0, m.index - 40), m.index);
+      const after = text.slice(m.index + m[0].length, m.index + m[0].length + 20);
+      if (/\b(?:do\s+not|don't|dont|never|not|mat|nahi|kabhi)(?:\s+\w+){0,2}\s*$/i.test(before)
+        || /^\s*(?:mat|nahi|nahin|na)\s+(?:karo|karein|karna|bhejo|bhejein)\b/i.test(after)) continue;
+    }
     score += p.pts;
     redFlags.push({ phrase: m[0].trim(), reason: p.reason });
     types.set(p.type, (types.get(p.type) || 0) + p.pts);

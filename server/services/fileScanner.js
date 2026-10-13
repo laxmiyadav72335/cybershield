@@ -6,6 +6,7 @@
  *     VirusTotal, poll the analysis, then drop the Buffer. Nothing is stored.
  */
 import { lookupFileHash, uploadFileToVirusTotal } from './virusTotal.js';
+import { createHash } from 'node:crypto';
 import { explainFindings } from './gemini.js';
 import { scoreFile } from '../utils/threatScore.js';
 import { cacheGet, cacheSet } from '../utils/cache.js';
@@ -25,6 +26,9 @@ const prettyBytes = (n) => {
 export async function scanFile({ sha256, fileName, size, mimeType, buffer }) {
   if (!SHA256_RE.test(sha256 || '')) throw httpError(400, 'invalid_hash', 'A valid SHA-256 hash is required.');
   const hash = sha256.toLowerCase();
+  if (buffer && createHash('sha256').update(buffer).digest('hex') !== hash) {
+    throw httpError(400, 'hash_mismatch', 'The uploaded file does not match its SHA-256 hash.');
+  }
   const safeName = String(fileName || 'file').slice(0, 120);
 
   const cacheKey = `file:${hash}`;

@@ -9,7 +9,7 @@ import { analyzeMessage, explainFindings, fallbackExplanation } from './gemini.j
 import { analyzeMessageHeuristics } from '../utils/messageHeuristics.js';
 import { extractUrls } from '../utils/urlUtils.js';
 import { scanUrl } from './urlScanner.js';
-import { scoreMessage } from '../utils/threatScore.js';
+import { scoreMessage, verdictFromScore } from '../utils/threatScore.js';
 import { httpError } from '../middleware/errorHandler.js';
 
 const MAX_CHARS = 5000;
@@ -30,7 +30,7 @@ export async function scanMessage(rawText) {
   const rules = analyzeMessageHeuristics(text);
 
   // Prefer Gemini; fall back to rules. Merge rule red-flags the AI missed.
-  const ai = aiRaw.available ? { ...aiRaw, source: 'gemini' } : rules;
+  const ai = aiRaw.available ? { ...aiRaw, redFlags: [...aiRaw.redFlags], source: 'gemini' } : rules;
   if (aiRaw.available) {
     const seen = new Set(ai.redFlags.map((f) => f.phrase.toLowerCase()));
     for (const f of rules.redFlags) if (!seen.has(f.phrase.toLowerCase())) ai.redFlags.push(f);
@@ -40,14 +40,18 @@ export async function scanMessage(rawText) {
     .filter(Boolean)
     .map((r) => ({ url: r.input, threatScore: r.threatScore, verdict: r.verdict, summary: r.summary, domain: r.domain }));
 
-  const { score, verdict, breakdown } = scoreMessage({ ai, linkScans: links });
+  const { score, verdict, breakdown } = scoreMessage({ ai, rules, linkScans: links });
+  const rulesRaisedVerdict = aiRaw.available && rules.riskScore > aiRaw.riskScore
+    && verdictFromScore(rules.riskScore) !== verdictFromScore(aiRaw.riskScore);
 
   // Explanation: Gemini's own text if available, otherwise generate / fallback
-  let explanation = aiRaw.available ? aiRaw.explanation : '';
-  let aiAvailable = aiRaw.available;
+  let explanation = aiRaw.available && !rulesRaisedVerdict ? aiRaw.explanation : '';
+  let aiAvailable = aiRaw.available && !rulesRaisedVerdict;
   if (!explanation && !aiRaw.available) {
     // Gemini already failed for this message — don't wait on it a second time
     explanation = fallbackExplanation({ scanType: 'message', verdict, score, breakdown, unavailable: ['Gemini AI'] });
+  } else if (rulesRaisedVerdict) {
+    explanation = fallbackExplanation({ scanType: 'message', verdict, score, breakdown });
   } else if (!explanation) {
     const gen = await explainFindings({
       scanType: 'message',
@@ -61,10 +65,11 @@ export async function scanMessage(rawText) {
     aiAvailable = gen.available;
   }
 
+  const scamType = rulesRaisedVerdict ? rules.scamType : ai.scamType;
   const summary =
     verdict === 'safe'
       ? 'No scam patterns detected in this message.'
-      : `Looks like a ${ai.scamType && ai.scamType !== 'none' ? ai.scamType : 'scam'} — ${ai.redFlags.length} red flag${ai.redFlags.length === 1 ? '' : 's'} found${links.length ? ` and ${links.length} link${links.length === 1 ? '' : 's'} checked` : ''}.`;
+      : `Looks like a ${scamType && scamType !== 'none' ? scamType : 'scam'} — ${ai.redFlags.length} red flag${ai.redFlags.length === 1 ? '' : 's'} found${links.length ? ` and ${links.length} link${links.length === 1 ? '' : 's'} checked` : ''}.`;
 
   return {
     scanType: 'message',
@@ -75,7 +80,7 @@ export async function scanMessage(rawText) {
     summary,
     explanation,
     aiAvailable,
-    advice: ai.advice || '',
+    advice: rulesRaisedVerdict ? '' : ai.advice || '',
     breakdown,
     sources: { ai, rules, links },
     unavailableSources: aiRaw.available ? [] : ['Gemini AI (rule-based analysis used)'],

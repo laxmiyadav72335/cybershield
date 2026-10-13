@@ -171,7 +171,7 @@ export default function Result() {
               </p>
               <p className="text-sm leading-relaxed text-slate-200">{result.explanation}</p>
               {!result.aiAvailable && !result.local && (
-                <p className="mt-2 text-[11px] text-slate-500">Gemini AI was unavailable, so this is a rule-based summary.</p>
+                <p className="mt-2 text-[11px] text-slate-500">This is a rule-based summary of the available findings.</p>
               )}
             </motion.div>
           </div>

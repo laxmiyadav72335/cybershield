@@ -14,6 +14,12 @@ import { httpError } from '../middleware/errorHandler.js';
 // Private + reserved/documentation/multicast ranges — never routable on the public internet
 const PRIVATE_V4 = /^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|0\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|192\.0\.[02]\.|198\.1[89]\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-5]\d)\.|255\.255\.255\.255$)/;
 
+export function isNonPublicIp(ip, version = isIP(ip)) {
+  if (version === 4) return PRIVATE_V4.test(ip);
+  if (version === 6) return /^(::(?:1)?$|fc|fd|fe[89ab]|ff|2001:db8:)/i.test(ip);
+  return false;
+}
+
 export async function scanIp(rawIp) {
   let ip = String(rawIp || '').trim().replace(/^\[|\]$/g, '');
   // IPv4-mapped IPv6 (::ffff:1.2.3.4) is really an IPv4 address — look up the v4 form
@@ -21,7 +27,7 @@ export async function scanIp(rawIp) {
   if (mapped) ip = mapped[1];
   const version = isIP(ip);
   if (!version) throw httpError(400, 'invalid_ip', 'Enter a valid IPv4 (e.g. 8.8.8.8) or IPv6 address.');
-  const isPrivate = version === 4 ? PRIVATE_V4.test(ip) : /^(::1$|fc|fd|fe80)/i.test(ip);
+  const isPrivate = isNonPublicIp(ip, version);
 
   const cacheKey = `ip:${ip}`;
   const cached = cacheGet(cacheKey);

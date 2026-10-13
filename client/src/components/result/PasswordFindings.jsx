@@ -56,7 +56,7 @@ export default function PasswordFindings({ result }) {
         </SourceCard>
       </div>
 
-      <GlassCard className="p-5 sm:p-6">
+      {hibp.available && <GlassCard className="p-5 sm:p-6">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
           <Icon name="key" className="h-4 w-4 text-cyber-cyan" />
           How k-anonymity kept your password private
@@ -74,7 +74,7 @@ export default function PasswordFindings({ result }) {
             </li>
           ))}
         </ol>
-      </GlassCard>
+      </GlassCard>}
     </div>
   );
 }

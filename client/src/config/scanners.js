@@ -32,7 +32,7 @@ export const SCANNERS = [
     title: 'SMS & Email Scam Checker',
     tagline: 'KYC, OTP & job scams',
     description:
-      'AI reads the message, flags scam phrases and checks every link inside it.',
+      'AI reads the message, flags scam phrases and checks up to three links inside it.',
     icon: 'message',
     accent: '#A78BFA',
     sources: ['Gemini AI analysis', 'Embedded link scan'],

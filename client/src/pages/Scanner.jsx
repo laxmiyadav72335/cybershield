@@ -172,7 +172,7 @@ export default function Scanner() {
             ))}
           </ul>
           <p className="mt-6 text-xs leading-relaxed text-slate-500">
-            All third-party API calls go through our backend. API keys never reach the browser.
+            Security API keys stay on our backend. Password breach checks contact Have I Been Pwned directly from your browser.
           </p>
         </GlassCard>
       </div>

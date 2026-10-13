@@ -91,7 +91,7 @@ export default function FileScanForm({ onScan, disabled }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs leading-relaxed text-slate-500">
           <span className="text-cyber-cyan">Privacy:</span> we hash the file in your browser first and only upload it if
-          VirusTotal has never seen it. Files are never stored.
+          VirusTotal has never seen it. Our server does not store file bytes; unknown files are sent to VirusTotal for analysis.
         </p>
         <Button type="submit" size="lg" disabled={disabled || !file} className="sm:w-40">
           <Icon name="scan" className="h-5 w-5" />

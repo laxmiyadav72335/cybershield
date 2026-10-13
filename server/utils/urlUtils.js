@@ -60,7 +60,9 @@ export function analyzeUrlHeuristics(u) {
   const subdomainCount = isIpUrl ? 0 : Math.max(0, hostname.split('.').length - 2);
   const excessiveSubdomains = subdomainCount >= 3;
   const keywords = SUSPICIOUS_KEYWORDS.filter((k) => full.includes(k));
-  const hasAtSymbol = u.href.includes('@');
+  // Only userinfo before the host can disguise the real destination. An @ in
+  // a query value (for example an email address) does not change the host.
+  const hasAtSymbol = Boolean(u.username || u.password);
   const isVeryLong = u.href.length > 100;
   const hasPunycode = hostname.includes('xn--');
 
