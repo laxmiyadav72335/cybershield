@@ -13,3 +13,15 @@ test('VirusTotal reports with engine statistics are complete', () => {
   assert.equal(report.status, 'completed');
   assert.equal(report.stats.harmless, 1);
 });
+
+test('zero or unfinished engine statistics do not produce a clean result', () => {
+  for (const attrs of [
+    { last_analysis_stats: { malicious: 0, suspicious: 0, harmless: 0, undetected: 0 } },
+    { status: 'queued', stats: { harmless: 1 } },
+    { last_analysis_stats: { timeout: 3, failure: 2 } },
+  ]) {
+    const report = fromAttributes(attrs);
+    assert.equal(report.status, 'queued');
+    assert.equal(report.stats, null);
+  }
+});

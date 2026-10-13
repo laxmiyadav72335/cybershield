@@ -14,7 +14,23 @@ import { httpError } from '../middleware/errorHandler.js';
 // Private + reserved/documentation/multicast ranges — never routable on the public internet
 const PRIVATE_V4 = /^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|0\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|192\.0\.[02]\.|198\.1[89]\.|198\.51\.100\.|203\.0\.113\.|2(2[4-9]|[3-5]\d)\.|255\.255\.255\.255$)/;
 
+function normalizeIp(ip) {
+  if (isIP(ip) !== 6) return ip;
+  // URL parsing compresses zero groups and removes leading zeroes. It also
+  // converts dotted IPv4-mapped addresses to the equivalent hexadecimal form.
+  const host = new URL(`http://[${ip.split('%')[0]}]/`).hostname.slice(1, -1);
+  const mapped = host.match(/^::ffff:([a-f0-9]+):([a-f0-9]+)$/i);
+  if (!mapped) return host;
+  const high = parseInt(mapped[1], 16);
+  const low = parseInt(mapped[2], 16);
+  return [high >> 8, high & 255, low >> 8, low & 255].join('.');
+}
+
 export function isNonPublicIp(ip, version = isIP(ip)) {
+  if (version === 6) {
+    ip = normalizeIp(ip);
+    version = isIP(ip);
+  }
   if (version === 4) return PRIVATE_V4.test(ip);
   if (version === 6) return /^(::(?:1)?$|fc|fd|fe[89ab]|ff|2001:db8:)/i.test(ip);
   return false;
@@ -29,9 +45,8 @@ export function ipReputationSummary(abuseIpdb) {
 
 export async function scanIp(rawIp) {
   let ip = String(rawIp || '').trim().replace(/^\[|\]$/g, '');
-  // IPv4-mapped IPv6 (::ffff:1.2.3.4) is really an IPv4 address — look up the v4 form
-  const mapped = ip.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i);
-  if (mapped) ip = mapped[1];
+  // Equivalent IPv6 spellings share validation, reputation checks and cache.
+  ip = normalizeIp(ip);
   const version = isIP(ip);
   if (!version) throw httpError(400, 'invalid_ip', 'Enter a valid IPv4 (e.g. 8.8.8.8) or IPv6 address.');
   const isPrivate = isNonPublicIp(ip, version);

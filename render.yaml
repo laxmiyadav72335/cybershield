@@ -4,17 +4,20 @@ services:
   - type: web
     name: cybershield-api
     runtime: node
+    plan: free
     rootDir: server
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: 22
       - key: CLIENT_ORIGIN
-        sync: false # Set to https://laxmiyadav72335.github.io during Blueprint creation
+        value: https://laxmiyadav72335.github.io
       - key: GEMINI_MODEL
         value: gemini-3.5-flash
+      - key: GEMINI_EXPLAIN_MODEL
+        value: gemini-3.5-flash-lite
       - key: VIRUSTOTAL_API_KEY
         sync: false
       - key: SAFE_BROWSING_API_KEY

@@ -17,10 +17,19 @@ test('only URL userinfo triggers the at-sign disguise flag', () => {
 });
 
 test('non-public IPv6 ranges are excluded from reputation lookups', () => {
-  for (const ip of ['::', '::1', 'fc00::1', 'fe80::1', 'fe90::1', 'febf::1', 'ff02::1', '2001:db8::1']) {
+  for (const ip of ['::', '::1', 'fc00::1', 'fe80::1', 'fe90::1', 'febf::1', 'ff02::1', '2001:db8::1', '0:0:0:0:0:0:0:1', '2001:0db8::1', '::ffff:7f00:1', '::ffff:127.0.0.1']) {
     assert.equal(isNonPublicIp(ip), true, `${ip} should be non-public`);
   }
   assert.equal(isNonPublicIp('2606:4700:4700::1111'), false);
+  assert.equal(isNonPublicIp('::ffff:808:808'), false);
+});
+
+test('equivalent private IP spellings produce unscored reports without external lookups', async () => {
+  for (const ip of ['0:0:0:0:0:0:0:1', '2001:0db8::1', '::ffff:7f00:1']) {
+    const report = await scanIp(ip);
+    assert.equal(report.isPrivate, true);
+    assert.equal(report.threatScore, null);
+  }
 });
 
 test('non-public IPs have no safe verdict or threat score', async () => {

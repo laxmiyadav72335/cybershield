@@ -16,6 +16,12 @@ export default function Layout() {
     <div className="relative flex min-h-dvh flex-col overflow-x-clip">
       <a
         href="#main"
+        onClick={(event) => {
+          event.preventDefault();
+          const main = document.getElementById('main');
+          main?.focus({ preventScroll: true });
+          main?.scrollIntoView({ block: 'start' });
+        }}
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-cyber-cyan focus:px-4 focus:py-2 focus:text-bg-900"
       >
         Skip to content
@@ -23,7 +29,7 @@ export default function Layout() {
       <ParticleNetwork />
       <ScrollToTop />
       <Navbar />
-      <main id="main" className="flex-1 px-4 sm:px-6">
+      <main id="main" tabIndex={-1} className="flex-1 px-4 sm:px-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

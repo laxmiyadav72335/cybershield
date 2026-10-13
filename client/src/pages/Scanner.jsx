@@ -54,16 +54,21 @@ export default function Scanner() {
     setStatusLines(lines);
     setSubtitle(preview);
     setScanning(true);
-    abortRef.current = new AbortController();
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const [result] = await Promise.all([fn(abortRef.current.signal), wait(MIN_SCAN_MS)]);
+      const [result] = await Promise.all([fn(controller.signal), wait(MIN_SCAN_MS)]);
+      // Local and cached scans can finish before the radar delay. Leaving the
+      // page during that delay must still cancel saving and navigation.
+      controller.signal.throwIfAborted();
       saveLastResult(result);
       bumpGlobalCounter(); // fire-and-forget public counter
       navigate('/result', { state: { result } });
     } catch (err) {
-      if (err.name !== 'AbortError') setError({ type, value: err });
+      if (!controller.signal.aborted && err.name !== 'AbortError') setError({ type, value: err });
     } finally {
-      setScanning(false);
+      if (!controller.signal.aborted) setScanning(false);
     }
   };
 

@@ -45,7 +45,8 @@ function toEngineList(results = {}) {
 
 export function fromAttributes(attrs, extra = {}) {
   const rawStats = attrs.last_analysis_stats || attrs.stats;
-  const hasStats = rawStats && Object.keys(rawStats).length > 0;
+  const hasStats = rawStats && (!attrs.status || attrs.status === 'completed')
+    && ['malicious', 'suspicious', 'harmless', 'undetected'].some((category) => rawStats[category] > 0);
   const stats = hasStats ? rawStats : {};
   const results = attrs.last_analysis_results || attrs.results || {};
   return {

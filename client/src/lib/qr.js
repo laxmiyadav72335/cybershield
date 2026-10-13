@@ -47,7 +47,7 @@ export function parseQrContent(raw) {
   const text = String(raw || '').trim();
   if (!text) return { kind: 'text', raw: text };
 
-  if (UPI_RE.test(text) || /^upi:\/\//i.test(text) || (/[?&]pa=/.test(text) && /:\/\//.test(text))) {
+  if (UPI_RE.test(text)) {
     const query = text.includes('?') ? text.slice(text.indexOf('?') + 1) : '';
     const p = new URLSearchParams(query);
     const amount = p.get('am') ? Number(p.get('am')) : null;

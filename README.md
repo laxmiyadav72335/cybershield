@@ -8,7 +8,7 @@ No account needed. The latest report is kept in this browser tab's session stora
 
 > Final-year B.Sc. Computer Science project. Stack: React + Vite + Tailwind + Framer Motion
 > on the front end, Node + Express on the back end, Firestore for the public scan counter.
-> Deploys to Vercel (client) and Render (API).
+> Deploys to GitHub Pages (client) and Render (API).
 
 ---
 
@@ -23,7 +23,7 @@ No account needed. The latest report is kept in this browser tab's session stora
 7. [Threat score engine](#threat-score-engine)
 8. [API reference](#api-reference)
 9. [Privacy & security design](#privacy--security-design)
-10. [Deploy to Vercel + Render](#deploy-to-vercel--render)
+10. [Deploy to GitHub Pages + Render](#deploy-to-github-pages--render)
 11. [Viva cheat-sheet](#viva-cheat-sheet)
 
 ---
@@ -105,7 +105,6 @@ CollageProject/
 ├── .claude/launch.json     Dev-server launch config (Claude desktop)
 │
 ├── client/                 React 19 + Vite 8 + Tailwind v4 + Framer Motion
-│   ├── vercel.json         SPA rewrite + security headers
 │   ├── .env.example        VITE_FIREBASE_* (public) + VITE_API_BASE_URL
 │   └── src/
 │       ├── App.jsx                 Lazy-loaded routes
@@ -136,7 +135,7 @@ CollageProject/
 │       │   └── awareness/          ScamCard, Quiz
 │       └── pages/                  Home, Scanner, Result, Awareness, NotFound
 │
-└── server/                 Node 18+ / Express 5 (ES modules)
+└── server/                 Node 20+ / Express 5 (ES modules)
     ├── index.js            CORS, JSON limit, rate limit, routes, error handler, /api/health
     ├── .env.example        All secret keys
     ├── routes/scan.js      /url  /file  /message  /ip
@@ -159,7 +158,7 @@ CollageProject/
 
 ## Run locally
 
-Requirements: Node 18+ (tested on Node 24), npm.
+Requirements: Node 22.12+ (tested on Node 24), npm. Vite requires Node 20.19+ or 22.12+, and the API's Gemini SDK requires Node 20+.
 
 ```bash
 git clone <repo> && cd CollageProject
@@ -292,7 +291,8 @@ Every report has the same shape:
 - **Input validation**: URL normalisation, IP validation with `net.isIP`, message length cap,
   32 MB upload cap, JSON body limit 64 kB, SHA-256 format check.
 - **Graceful degradation**: `Promise.all` over sources that never throw — a failing API is
-  marked `available: false` and the UI shows a *Partial result* banner instead of a false "Safe".
+  marked `available: false` and the UI shows a *Partial result* banner. Link and password
+  scans may still show a verdict based on the remaining signals; missing checks do not prove safety.
 - **Rate limiting + cache** protect the VirusTotal free tier (4 req/min).
 - Firestore rules: the only writable document is the public counter, and only by +1.
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Button from '../ui/Button';
 import Icon from '../ui/Icon';
+import { isValidHttpUrl } from '../../lib/urlValidation';
 
 /**
  * Link Scanner input. Validation mirrors the backend's normalizeUrl: we
@@ -20,11 +21,7 @@ export default function UrlScanForm({ onScan, disabled }) {
     e.preventDefault();
     const value = url.trim();
     if (!value) return setError('Paste a link to scan.');
-    const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
-    try {
-      const u = new URL(withScheme);
-      if (!['http:', 'https:'].includes(u.protocol) || !u.hostname.includes('.')) throw new Error();
-    } catch {
+    if (!isValidHttpUrl(value)) {
       return setError('That does not look like a valid link (e.g. https://example.com/page).');
     }
     setError('');

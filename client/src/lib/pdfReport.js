@@ -4,7 +4,7 @@
  */
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { VERDICTS, getScanner } from '../config/scanners';
+import { VERDICTS, getScanner } from '../config/scanners.js';
 
 const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const NAVY = [5, 8, 22];
@@ -13,6 +13,10 @@ const MUTED = [100, 116, 139];
 const TEXT = [30, 41, 59];
 
 const fmtDate = (iso) => new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+
+// The built-in PDF fonts cannot encode the rupee or arrow glyphs. Keep the
+// currency explicit and readable in both document text and table cells.
+export const pdfText = (value) => String(value ?? '').replaceAll('₹', 'INR ').replaceAll('→', '->');
 
 /** Per-module key/value rows for the "Findings" table. */
 function findingsRows(r) {
@@ -51,7 +55,7 @@ function findingsRows(r) {
     default:
       break;
   }
-  return rows.map(([k, v]) => [k, String(v ?? '—')]);
+  return rows.map(([k, v]) => [pdfText(k), pdfText(v ?? '—')]);
 }
 
 export function buildPdf(result) {
@@ -93,28 +97,28 @@ export function buildPdf(result) {
   docPdf.setTextColor(...TEXT);
   docPdf.setFont('courier', 'normal');
   docPdf.setFontSize(10);
-  const item = docPdf.splitTextToSize(result.inputPreview || result.input || '', W - 80);
+  const item = docPdf.splitTextToSize(pdfText(result.inputPreview || result.input || ''), W - 80);
   docPdf.text(item, 40, y + 14);
   y += 14 + item.length * 12 + 14;
 
   docPdf.setFont('helvetica', 'bold');
   docPdf.setFontSize(13);
   docPdf.setTextColor(...vc);
-  const summary = docPdf.splitTextToSize(result.summary || '', W - 80);
+  const summary = docPdf.splitTextToSize(pdfText(result.summary || ''), W - 80);
   docPdf.text(summary, 40, y);
   y += summary.length * 16 + 8;
 
   docPdf.setFont('helvetica', 'normal');
   docPdf.setFontSize(10);
   docPdf.setTextColor(...TEXT);
-  const expl = docPdf.splitTextToSize(result.explanation || '', W - 80);
+  const expl = docPdf.splitTextToSize(pdfText(result.explanation || ''), W - 80);
   docPdf.text(expl, 40, y);
   y += expl.length * 13 + 10;
 
   if (result.unavailableSources?.length) {
     docPdf.setTextColor(180, 83, 9);
     docPdf.setFontSize(9);
-    docPdf.text(`Partial result: ${result.unavailableSources.join(', ')} could not be checked.`, 40, y);
+    docPdf.text(pdfText(`Partial result: ${result.unavailableSources.join(', ')} could not be checked.`), 40, y);
     y += 16;
   }
 
@@ -122,7 +126,7 @@ export function buildPdf(result) {
   autoTable(docPdf, {
     startY: y + 6,
     head: [['Why this score?', 'Points']],
-    body: result.threatScore == null ? [[result.scanType === 'file' ? (result.sources?.virusTotal?.status === 'queued' ? 'VirusTotal analysis is pending' : 'Detection data was unavailable') : result.isPrivate ? 'Public reputation was not checked' : 'Reputation service was unavailable', '—']] : result.breakdown?.length ? result.breakdown.map((b) => [b.label, `+${b.points}`]) : [['No risk signals were triggered', '0']],
+    body: result.threatScore == null ? [[result.scanType === 'file' ? (result.sources?.virusTotal?.status === 'queued' ? 'VirusTotal analysis is pending' : 'Detection data was unavailable') : result.isPrivate ? 'Public reputation was not checked' : 'Reputation service was unavailable', '—']] : result.breakdown?.length ? result.breakdown.map((b) => [pdfText(b.label), `+${b.points}`]) : [['No risk signals were triggered', '0']],
     foot: [[result.threatScore == null ? 'Result' : 'Total (capped at 100)', result.threatScore == null ? 'Not scored' : String(result.threatScore)]],
     theme: 'grid',
     headStyles: { fillColor: NAVY, textColor: CYAN, fontStyle: 'bold' },

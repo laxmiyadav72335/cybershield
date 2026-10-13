@@ -33,7 +33,16 @@ export async function scanFile({ sha256, fileName, size, mimeType, buffer }) {
 
   const cacheKey = `file:${hash}`;
   const cached = cacheGet(cacheKey);
-  if (cached) return { ...cached, cached: true };
+  if (cached) return {
+    ...cached,
+    input: safeName,
+    inputPreview: safeName,
+    fileName: safeName,
+    size: size ?? cached.size,
+    sizeLabel: prettyBytes(size ?? cached.size),
+    mimeType: mimeType || cached.mimeType,
+    cached: true,
+  };
 
   // Step 2: hash lookup
   let vt = await lookupFileHash(hash);
